@@ -9,6 +9,7 @@ import {
   listManagedUsers,
   resetManagedUserPassword,
 } from '@/lib/admin/service'
+import { loadAdminPendingCount } from '@/lib/admin/pending-notifications'
 import { createSupabaseAdminRepository } from '@/lib/admin/supabase'
 import {
   approveSignupRequest,
@@ -29,6 +30,11 @@ async function requireAdminContext() {
     userRepository: createSupabaseAdminRepository(admin),
     signupRepository: createSupabaseSignupReviewRepository(admin),
   }
+}
+
+export async function getAdminPendingCountAction() {
+  await requireAdminContext()
+  return loadAdminPendingCount(createAdminClient())
 }
 
 export async function listUsersAction() {

@@ -1,5 +1,6 @@
 'use server'
 
+import { recordAdminNotificationEvent } from '@/lib/admin/notifications'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { submitSupabaseSignupRequest } from '@/lib/auth/signup-requests-supabase'
 
@@ -13,11 +14,19 @@ export async function requestSignup(
   formData: FormData,
 ): Promise<SignupRequestState> {
   try {
-    await submitSupabaseSignupRequest(createAdminClient(), {
+    const admin = createAdminClient()
+    const result = await submitSupabaseSignupRequest(admin, {
       loginId: String(formData.get('loginId') ?? ''),
       displayName: String(formData.get('displayName') ?? ''),
       password: String(formData.get('password') ?? ''),
     })
+    const { data: request } = await admin
+      .from('signup_requests')
+      .select('id')
+      .eq('auth_user_id', result.userId)
+      .eq('status', 'pending')
+      .maybeSingle()
+    if (request?.id) await recordAdminNotificationEvent(admin, 'signup_request', request.id as string)
 
     return { status: 'success', error: null }
   } catch (error) {

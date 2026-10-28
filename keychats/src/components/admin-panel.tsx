@@ -15,6 +15,7 @@ import {
 import { createInviteAction, revokeInviteAction } from '@/app/(workspace)/admin/invite-actions'
 import type { ManagedUser } from '@/lib/admin/service'
 import type { PendingSignupRequest } from '@/lib/admin/signup-requests'
+import { ADMIN_PENDING_CHANGED_EVENT } from '@/lib/notifications/preferences'
 
 type InviteSummary = {
   id: string
@@ -63,9 +64,11 @@ export function AdminPanel({ initialUsers, initialInvites, initialSignupRequests
       if (mode === 'approve') {
         await approveSignupRequestAction(request.id)
         await Promise.all([refreshSignupRequests(), refreshUsers()])
+        window.dispatchEvent(new Event(ADMIN_PENDING_CHANGED_EVENT))
       } else {
         await rejectSignupRequestAction(request.id)
         await refreshSignupRequests()
+        window.dispatchEvent(new Event(ADMIN_PENDING_CHANGED_EVENT))
       }
     } catch {
       setError(`가입 요청을 ${label}하지 못했습니다.`)
