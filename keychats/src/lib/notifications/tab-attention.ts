@@ -34,7 +34,7 @@ export function createTabAttentionController(document: Document): TabAttentionCo
     document.title = showAlertState
       ? `🔴 ${unreadCount} 새 메시지 · KEYCHATS`
       : originalTitle
-    icon!.href = showAlertState ? ALERT_FAVICON : originalIconHref
+    icon!.href = ALERT_FAVICON
   }
 
   const clear = () => {
