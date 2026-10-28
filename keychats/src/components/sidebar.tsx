@@ -20,8 +20,18 @@ import {
 } from '@/app/(workspace)/dm/dm-actions'
 import { Avatar } from '@/components/avatar'
 import { ChannelDialog } from '@/components/channel-dialog'
+import {
+  isRoomBrowserNotificationEnabled,
+  NOTIFICATION_PREFERENCE_CHANGED_EVENT,
+  notificationPreferenceKey,
+  toBrowserNotificationPreferenceMap,
+  type BrowserNotificationPreferenceMap,
+  type BrowserNotificationPreferenceRow,
+  type NotificationRoomType,
+} from '@/lib/notifications/preferences'
 import { isSidebarHrefActive, sortSidebarCommunities, type SidebarCommunity } from '@/lib/sidebar/presentation'
 import type { KeychatsTheme } from '@/lib/settings/theme'
+import { createClient } from '@/lib/supabase/client'
 
 type ChannelItem = {
   id: string
@@ -63,6 +73,7 @@ type SidebarProps = {
   communities?: CommunityItem[]
   theme?: KeychatsTheme
   isAdmin?: boolean
+  adminPendingCount?: number
   unreadRealtimeStatus?: string
 }
 
@@ -274,6 +285,42 @@ function UnreadBadge({ count }: { count: number }) {
   )
 }
 
+function RoomNotificationToggle({
+  roomType,
+  roomId,
+  enabled,
+  onToggle,
+}: {
+  roomType: NotificationRoomType
+  roomId: string
+  enabled: boolean
+  onToggle: (roomType: NotificationRoomType, roomId: string) => Promise<void>
+}) {
+  const [busy, setBusy] = useState(false)
+  const label = enabled ? '브라우저 알림 끄기' : '브라우저 알림 켜기'
+
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      data-room-notification={enabled ? 'on' : 'off'}
+      disabled={busy}
+      onClick={() => {
+        setBusy(true)
+        void onToggle(roomType, roomId).finally(() => setBusy(false))
+      }}
+      className="shrink-0 rounded-md p-1.5 text-[#fff0c9]/55 transition hover:bg-[#fff0c9]/10 hover:text-[#fff0c9] disabled:opacity-40"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8">
+        <path d="M6.5 9.5a5.5 5.5 0 0 1 11 0c0 5 2 5.5 2 5.5h-15s2-.5 2-5.5Z" />
+        <path d="M10 18h4" />
+        {!enabled ? <path d="m4 4 16 16" /> : null}
+      </svg>
+    </button>
+  )
+}
+
 export function Sidebar({
   profile,
   currentUserId = '',
@@ -284,9 +331,57 @@ export function Sidebar({
   communities = [],
   theme: _theme = 'light',
   isAdmin = false,
+  adminPendingCount = 0,
   unreadRealtimeStatus = 'connecting',
 }: SidebarProps) {
   const pathname = usePathname()
+  const [notificationPreferences, setNotificationPreferences] = useState<BrowserNotificationPreferenceMap>({})
+
+  useEffect(() => {
+    if (!currentUserId) return
+    const client = createClient()
+    let active = true
+    void client
+      .from('browser_notification_preferences')
+      .select('room_type,room_id,enabled')
+      .eq('user_id', currentUserId)
+      .then(({ data }) => {
+        if (!active) return
+        setNotificationPreferences(
+          toBrowserNotificationPreferenceMap((data ?? []) as BrowserNotificationPreferenceRow[]),
+        )
+      })
+    return () => {
+      active = false
+    }
+  }, [currentUserId])
+
+  async function toggleRoomNotification(roomType: NotificationRoomType, roomId: string) {
+    if (!currentUserId) return
+    const key = notificationPreferenceKey(roomType, roomId)
+    const current = isRoomBrowserNotificationEnabled(roomType, roomId, notificationPreferences)
+    const enabled = !current
+    setNotificationPreferences((preferences) => ({ ...preferences, [key]: enabled }))
+
+    const client = createClient()
+    const { error } = await client.from('browser_notification_preferences').upsert({
+      user_id: currentUserId,
+      room_type: roomType,
+      room_id: roomId,
+      enabled,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,room_type,room_id' })
+
+    if (error) {
+      setNotificationPreferences((preferences) => ({ ...preferences, [key]: current }))
+      return
+    }
+
+    window.dispatchEvent(new CustomEvent(NOTIFICATION_PREFERENCE_CHANGED_EVENT, {
+      detail: { roomType, roomId, enabled },
+    }))
+  }
+
   const muted = 'text-[#fff0c9]/50'
   const item = 'text-[#fff0c9]/80 hover:bg-[#fff0c9]/10 hover:text-[#fff0c9]'
   const activeItem = 'bg-[#1d327a] text-[#fff0c9] font-semibold shadow-sm'
@@ -298,7 +393,7 @@ export function Sidebar({
   const linkClass = (href: string) =>
     `block rounded-lg px-2.5 py-2 text-sm transition ${isSidebarHrefActive(pathname, href) ? activeItem : item}`
   const rowLinkClass = (href: string) =>
-    `flex items-center justify-between rounded-lg px-2.5 py-2 text-sm transition ${isSidebarHrefActive(pathname, href) ? activeItem : item}`
+    `flex min-w-0 flex-1 items-center justify-between rounded-lg px-2.5 py-2 text-sm transition ${isSidebarHrefActive(pathname, href) ? activeItem : item}`
 
   return (
     <aside
@@ -350,10 +445,18 @@ export function Sidebar({
             {channels.map((channel) => {
               const href = `/channel/${channel.id}`
               return (
-                <Link key={channel.id} href={href} data-sidebar-active={isSidebarHrefActive(pathname, href) ? 'true' : 'false'} className={rowLinkClass(href)}>
-                  <span>#{channel.name}</span>
-                  <UnreadBadge count={channel.unreadCount} />
-                </Link>
+                <div key={channel.id} className="flex items-center gap-1">
+                  <Link href={href} data-sidebar-active={isSidebarHrefActive(pathname, href) ? 'true' : 'false'} className={rowLinkClass(href)}>
+                    <span className="min-w-0 truncate">#{channel.name}</span>
+                    <UnreadBadge count={channel.unreadCount} />
+                  </Link>
+                  <RoomNotificationToggle
+                    roomType="channel"
+                    roomId={channel.id}
+                    enabled={isRoomBrowserNotificationEnabled('channel', channel.id, notificationPreferences)}
+                    onToggle={toggleRoomNotification}
+                  />
+                </div>
               )
             })}
           </div>
@@ -410,10 +513,18 @@ export function Sidebar({
             {directMessages.map((direct) => {
               const href = `/dm/${direct.id}`
               return (
-                <Link key={direct.id} href={href} data-sidebar-active={isSidebarHrefActive(pathname, href) ? 'true' : 'false'} className={rowLinkClass(href)}>
-                  <span className="min-w-0 truncate">{direct.displayName}</span>
-                  <UnreadBadge count={direct.unreadCount} />
-                </Link>
+                <div key={direct.id} className="flex items-center gap-1">
+                  <Link href={href} data-sidebar-active={isSidebarHrefActive(pathname, href) ? 'true' : 'false'} className={rowLinkClass(href)}>
+                    <span className="min-w-0 truncate">{direct.displayName}</span>
+                    <UnreadBadge count={direct.unreadCount} />
+                  </Link>
+                  <RoomNotificationToggle
+                    roomType="dm"
+                    roomId={direct.id}
+                    enabled={isRoomBrowserNotificationEnabled('dm', direct.id, notificationPreferences)}
+                    onToggle={toggleRoomNotification}
+                  />
+                </div>
               )
             })}
           </div>
@@ -510,8 +621,9 @@ export function Sidebar({
         {isAdmin ? (
           <section>
             <div className={`mb-2 px-2 text-xs font-semibold tracking-[0.14em] ${muted}`}>ADMIN</div>
-            <Link href="/admin" data-sidebar-active={isSidebarHrefActive(pathname, '/admin') ? 'true' : 'false'} className={linkClass('/admin')}>
-              관리자
+            <Link href="/admin" data-sidebar-active={isSidebarHrefActive(pathname, '/admin') ? 'true' : 'false'} className={rowLinkClass('/admin')}>
+              <span>관리자</span>
+              <UnreadBadge count={adminPendingCount} />
             </Link>
           </section>
         ) : null}

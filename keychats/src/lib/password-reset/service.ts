@@ -2,6 +2,7 @@ import 'server-only'
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+import { recordAdminNotificationEvent } from '@/lib/admin/notifications'
 import { generateTemporaryPassword } from '@/lib/admin/service'
 import { normalizeLoginId } from '@/lib/auth/login-id'
 import {
@@ -43,13 +44,18 @@ export async function requestPasswordReset(admin: SupabaseClient, rawLoginId: st
     .eq('status', 'pending')
   if (cancelError) throw cancelError
 
-  const { error: insertError } = await admin.from('password_reset_requests').insert({
-    user_id: profile.user_id,
-    request_token_hash: hashPasswordResetToken(token),
-    expires_at: expiresAt,
-  })
+  const { data: insertedRequest, error: insertError } = await admin
+    .from('password_reset_requests')
+    .insert({
+      user_id: profile.user_id,
+      request_token_hash: hashPasswordResetToken(token),
+      expires_at: expiresAt,
+    })
+    .select('id')
+    .single()
   if (insertError) throw insertError
 
+  await recordAdminNotificationEvent(admin, 'password_reset', insertedRequest.id as string)
   return { token }
 }
 

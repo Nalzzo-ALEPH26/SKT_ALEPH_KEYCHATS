@@ -2,11 +2,13 @@ import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 
 import { AppShell } from '@/components/app-shell'
+import { loadAdminPendingCount } from '@/lib/admin/pending-notifications'
 import { AuthGuardError, requireActiveUser } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
 import { buildDirectSidebarData } from '@/lib/dms/presentation'
 import { loadUnreadCounts } from '@/lib/messages/state-supabase'
 import { normalizeTheme, type KeychatsTheme } from '@/lib/settings/theme'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -24,6 +26,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
 
   const { profile, claims } = authResult
   const isAdmin = claims.app_metadata?.role === 'admin'
+  const adminPendingCountPromise = isAdmin ? loadAdminPendingCount(createAdminClient()) : Promise.resolve(0)
 
   const [
     { data: settings, error: settingsError },
@@ -35,6 +38,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
     { data: communities, error: communitiesError },
     { data: communityPins, error: communityPinsError },
     unread,
+    adminPendingCount,
   ] = await Promise.all([
     client.from('user_settings').select('theme').eq('user_id', profile.user_id).maybeSingle(),
     client.from('channels').select('id,name,created_by,is_default').order('is_default', { ascending: false }).order('name'),
@@ -45,6 +49,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
     client.from('communities').select('id,name,created_at,is_notice').order('created_at', { ascending: true }),
     client.from('community_pins').select('community_id,pinned_at').order('pinned_at', { ascending: false }),
     loadUnreadCounts(client),
+    adminPendingCountPromise,
   ])
 
   if (settingsError) throw settingsError
@@ -112,6 +117,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       }))}
       theme={theme}
       isAdmin={isAdmin}
+      adminPendingCount={adminPendingCount}
     >
       {children}
     </AppShell>

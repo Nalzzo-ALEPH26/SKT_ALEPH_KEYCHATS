@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
+import { getAdminPendingCountAction } from '@/app/(workspace)/admin/admin-actions'
 import { Sidebar } from '@/components/sidebar'
 import { shouldRefreshForUnknownDmThread } from '@/lib/dms/sidebar-refresh'
 import type { RealtimeMessageRow } from '@/lib/messages/realtime'
+import { ADMIN_PENDING_CHANGED_EVENT } from '@/lib/notifications/preferences'
 import type { KeychatsTheme } from '@/lib/settings/theme'
 import { createClient } from '@/lib/supabase/client'
 
@@ -48,6 +50,7 @@ type AppShellProps = {
   communities?: CommunityItem[]
   theme?: KeychatsTheme
   isAdmin?: boolean
+  adminPendingCount?: number
   children?: ReactNode
 }
 
@@ -137,6 +140,7 @@ export function AppShell({
   communities = [],
   theme = 'light',
   isAdmin = false,
+  adminPendingCount = 0,
   children,
 }: AppShellProps) {
   const pathname = usePathname()
@@ -147,9 +151,31 @@ export function AppShell({
     clearActiveRoom(initialUnreadCounts(channels, directMessages), initialActiveRoom),
   )
   const [unreadRealtimeStatus, setUnreadRealtimeStatus] = useState('connecting')
+  const [liveAdminPendingCount, setLiveAdminPendingCount] = useState(adminPendingCount)
   const activeRoomRef = useRef<ActiveRoom>(initialActiveRoom)
   const knownChannelIds = useMemo(() => new Set(channels.map((channel) => channel.id)), [channels])
   const knownDmIds = useMemo(() => new Set(directMessages.map((direct) => direct.id)), [directMessages])
+
+  useEffect(() => {
+    setLiveAdminPendingCount(adminPendingCount)
+  }, [adminPendingCount])
+
+  useEffect(() => {
+    if (!isAdmin) return
+    let active = true
+    const syncAdminPending = () => {
+      void getAdminPendingCountAction()
+        .then((count) => {
+          if (active) setLiveAdminPendingCount(count)
+        })
+        .catch(() => undefined)
+    }
+    window.addEventListener(ADMIN_PENDING_CHANGED_EVENT, syncAdminPending)
+    return () => {
+      active = false
+      window.removeEventListener(ADMIN_PENDING_CHANGED_EVENT, syncAdminPending)
+    }
+  }, [isAdmin])
 
   useEffect(() => {
     const activeRoom = activeRoomFromPathname(pathname)
@@ -302,6 +328,7 @@ export function AppShell({
       communities={communities}
       theme={theme}
       isAdmin={isAdmin}
+      adminPendingCount={liveAdminPendingCount}
       unreadRealtimeStatus={unreadRealtimeStatus}
     />
   )

@@ -4,27 +4,88 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 import type { RealtimeMessageRow } from '@/lib/messages/realtime'
+import {
+  ADMIN_PENDING_CHANGED_EVENT,
+  isRoomBrowserNotificationEnabled,
+  NOTIFICATION_PREFERENCE_CHANGED_EVENT,
+  notificationPreferenceKey,
+  toBrowserNotificationPreferenceMap,
+  type BrowserNotificationPreferenceMap,
+  type BrowserNotificationPreferenceRow,
+  type NotificationRoomType,
+} from '@/lib/notifications/preferences'
 import { createClient } from '@/lib/supabase/client'
+
+type AdminNotificationEventRow = {
+  id: string
+  kind: 'signup_request' | 'password_reset'
+  entity_id: string
+}
+
+type PreferenceChangeDetail = {
+  roomType: NotificationRoomType
+  roomId: string
+  enabled: boolean
+}
 
 export function BrowserMessageNotifications() {
   const router = useRouter()
 
   useEffect(() => {
-    if (typeof Notification === 'undefined') return
     const client = createClient()
     let active = true
     let realtimeChannel: ReturnType<typeof client.channel> | null = null
+    let preferences: BrowserNotificationPreferenceMap = {}
 
     const stopRealtime = () => {
       if (realtimeChannel) void client.removeChannel(realtimeChannel)
       realtimeChannel = null
     }
 
-    const startRealtime = async (accessToken: string, currentUserId: string) => {
+    const onPreferenceChanged = (event: Event) => {
+      const detail = (event as CustomEvent<PreferenceChangeDetail>).detail
+      if (!detail?.roomType || !detail.roomId) return
+      preferences = {
+        ...preferences,
+        [notificationPreferenceKey(detail.roomType, detail.roomId)]: detail.enabled,
+      }
+    }
+    window.addEventListener(NOTIFICATION_PREFERENCE_CHANGED_EVENT, onPreferenceChanged)
+
+    const showAdminNotification = (event: AdminNotificationEventRow) => {
+      window.dispatchEvent(new Event(ADMIN_PENDING_CHANGED_EVENT))
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+      if (document.visibilityState === 'visible' && document.hasFocus()) return
+
+      const body = event.kind === 'signup_request'
+        ? '새 가입 요청이 들어왔습니다.'
+        : '새 임시 비밀번호 발급 요청이 들어왔습니다.'
+      const notification = new Notification('Keychats 관리자', {
+        body,
+        tag: `keychats-admin-${event.kind}-${event.entity_id}`,
+      })
+      notification.onclick = () => {
+        window.focus()
+        router.push('/admin')
+        notification.close()
+      }
+    }
+
+    const startRealtime = async (accessToken: string, currentUserId: string, isAdmin: boolean) => {
       stopRealtime()
+
+      const { data: preferenceRows } = await client
+        .from('browser_notification_preferences')
+        .select('room_type,room_id,enabled')
+        .eq('user_id', currentUserId)
+      preferences = toBrowserNotificationPreferenceMap(
+        (preferenceRows ?? []) as BrowserNotificationPreferenceRow[],
+      )
+
       await client.realtime.setAuth(accessToken)
       if (!active) return
-      realtimeChannel = client
+
+      const channel = client
         .channel(`browser-notifications:${currentUserId}`)
         .on(
           'postgres_changes',
@@ -32,7 +93,15 @@ export function BrowserMessageNotifications() {
           async (payload) => {
             const message = payload.new as unknown as RealtimeMessageRow
             if (!active || message.sender_id === currentUserId || message.deleted_at) return
-            if (Notification.permission !== 'granted') return
+
+            const roomType: NotificationRoomType | null = message.dm_thread_id
+              ? 'dm'
+              : message.channel_id
+                ? 'channel'
+                : null
+            const roomId = message.dm_thread_id ?? message.channel_id
+            if (!roomType || !roomId || !isRoomBrowserNotificationEnabled(roomType, roomId, preferences)) return
+            if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
             if (document.visibilityState === 'visible' && document.hasFocus()) return
 
             const { data: sender } = await client
@@ -44,7 +113,7 @@ export function BrowserMessageNotifications() {
 
             const notification = new Notification(sender?.display_name ?? 'Keychats', {
               body: message.body?.trim().slice(0, 140) || '첨부 파일을 보냈습니다.',
-              tag: `keychats-${message.channel_id ?? message.dm_thread_id ?? message.id}`,
+              tag: `keychats-${roomId}`,
             })
             notification.onclick = () => {
               window.focus()
@@ -54,11 +123,22 @@ export function BrowserMessageNotifications() {
             }
           },
         )
-        .subscribe()
+
+      if (isAdmin) {
+        channel.on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'admin_notification_events' },
+          (payload) => showAdminNotification(payload.new as unknown as AdminNotificationEventRow),
+        )
+      }
+
+      realtimeChannel = channel.subscribe()
     }
 
     void client.auth.getSession().then(({ data: { session } }) => {
-      if (session?.access_token) void startRealtime(session.access_token, session.user.id)
+      if (session?.access_token) {
+        void startRealtime(session.access_token, session.user.id, session.user.app_metadata?.role === 'admin')
+      }
     })
 
     const { data: authListener } = client.auth.onAuthStateChange((_event, session) => {
@@ -67,12 +147,13 @@ export function BrowserMessageNotifications() {
         stopRealtime()
         return
       }
-      void startRealtime(session.access_token, session.user.id)
+      void startRealtime(session.access_token, session.user.id, session.user.app_metadata?.role === 'admin')
     })
 
     return () => {
       active = false
       authListener.subscription.unsubscribe()
+      window.removeEventListener(NOTIFICATION_PREFERENCE_CHANGED_EVENT, onPreferenceChanged)
       stopRealtime()
     }
   }, [router])

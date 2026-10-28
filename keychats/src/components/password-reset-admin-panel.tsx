@@ -6,6 +6,7 @@ import {
   issuePasswordResetAction,
   listPasswordResetRequestsAction,
 } from '@/app/(workspace)/admin/admin-actions'
+import { ADMIN_PENDING_CHANGED_EVENT } from '@/lib/notifications/preferences'
 import type { PendingPasswordResetRequest } from '@/lib/password-reset/types'
 
 export function PasswordResetAdminPanel() {
@@ -28,6 +29,7 @@ export function PasswordResetAdminPanel() {
     try {
       await issuePasswordResetAction(request.id)
       await refresh()
+      window.dispatchEvent(new Event(ADMIN_PENDING_CHANGED_EVENT))
     } catch {
       setError('임시 비밀번호를 발급하지 못했습니다.')
     } finally {
