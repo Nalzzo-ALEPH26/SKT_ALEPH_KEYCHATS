@@ -22,6 +22,7 @@ jobs:
           tar -xzf /tmp/keychats-payload.tar.gz -C .
           rm -rf .transfer
           rm -f .github/workflows/transfer-keychats.yml
+          rm -f .github/workflows/keychats-ci.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
