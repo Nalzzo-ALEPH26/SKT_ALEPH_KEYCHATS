@@ -14,6 +14,7 @@ import {
   type BrowserNotificationPreferenceRow,
   type NotificationRoomType,
 } from '@/lib/notifications/preferences'
+import { createTabAttentionController } from '@/lib/notifications/tab-attention'
 import { createClient } from '@/lib/supabase/client'
 
 type AdminNotificationEventRow = {
@@ -33,6 +34,7 @@ export function BrowserMessageNotifications() {
 
   useEffect(() => {
     const client = createClient()
+    const attention = createTabAttentionController(document)
     let active = true
     let realtimeChannel: ReturnType<typeof client.channel> | null = null
     let preferences: BrowserNotificationPreferenceMap = {}
@@ -52,10 +54,17 @@ export function BrowserMessageNotifications() {
     }
     window.addEventListener(NOTIFICATION_PREFERENCE_CHANGED_EVENT, onPreferenceChanged)
 
+    const clearAttentionWhenVisible = () => {
+      if (document.visibilityState === 'visible' && document.hasFocus()) attention.clear()
+    }
+    document.addEventListener('visibilitychange', clearAttentionWhenVisible)
+    window.addEventListener('focus', clearAttentionWhenVisible)
+
     const showAdminNotification = (event: AdminNotificationEventRow) => {
       window.dispatchEvent(new Event(ADMIN_PENDING_CHANGED_EVENT))
-      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
       if (document.visibilityState === 'visible' && document.hasFocus()) return
+      attention.alert()
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
 
       const body = event.kind === 'signup_request'
         ? '새 가입 요청이 들어왔습니다.'
@@ -101,8 +110,9 @@ export function BrowserMessageNotifications() {
                 : null
             const roomId = message.dm_thread_id ?? message.channel_id
             if (!roomType || !roomId || !isRoomBrowserNotificationEnabled(roomType, roomId, preferences)) return
-            if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
             if (document.visibilityState === 'visible' && document.hasFocus()) return
+            attention.alert()
+            if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
 
             const { data: sender } = await client
               .from('profiles')
@@ -154,6 +164,9 @@ export function BrowserMessageNotifications() {
       active = false
       authListener.subscription.unsubscribe()
       window.removeEventListener(NOTIFICATION_PREFERENCE_CHANGED_EVENT, onPreferenceChanged)
+      document.removeEventListener('visibilitychange', clearAttentionWhenVisible)
+      window.removeEventListener('focus', clearAttentionWhenVisible)
+      attention.dispose()
       stopRealtime()
     }
   }, [router])

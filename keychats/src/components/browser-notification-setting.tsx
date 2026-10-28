@@ -26,14 +26,14 @@ export function BrowserNotificationSetting() {
       ? '브라우저에서 알림이 차단되어 있습니다.'
       : permission === 'unsupported'
         ? '이 브라우저는 데스크톱 알림을 지원하지 않습니다.'
-        : '다른 탭이나 프로그램을 보고 있을 때 새 메시지를 Windows 알림으로 표시합니다.'
+        : '다른 탭을 보고 있을 때 Keychats 탭이 강조됩니다. Windows 알림도 함께 받으려면 브라우저 알림을 허용하세요.'
 
   return (
     <div>
       <p className="text-sm opacity-55">{label}</p>
       {permission === 'default' ? (
         <button type="button" onClick={requestPermission} className="mt-4 rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white dark:bg-white dark:text-black">
-          브라우저 알림 허용
+          Windows 알림도 허용
         </button>
       ) : null}
       {permission === 'denied' ? (

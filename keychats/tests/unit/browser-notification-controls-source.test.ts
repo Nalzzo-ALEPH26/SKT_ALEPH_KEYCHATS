@@ -38,3 +38,18 @@ describe('per-room browser notifications and admin alerts', () => {
     expect(reset).toContain("recordAdminNotificationEvent(admin, 'password_reset'")
   })
 })
+
+describe('background tab attention', () => {
+  it('uses a blinking title and favicon signal that clears when Keychats becomes visible again', () => {
+    const listener = source('../../src/components/browser-message-notifications.tsx')
+    const attention = source('../../src/lib/notifications/tab-attention.ts')
+
+    expect(listener).toContain('createTabAttentionController')
+    expect(listener).toContain('attention.alert()')
+    expect(listener).toContain("document.addEventListener('visibilitychange'")
+    expect(attention).toContain('document.title')
+    expect(attention).toContain("querySelector<HTMLLinkElement>('link[rel~=\"icon\"]')")
+    expect(attention).toContain('setInterval')
+    expect(attention).toContain('const clear = () =>')
+  })
+})
