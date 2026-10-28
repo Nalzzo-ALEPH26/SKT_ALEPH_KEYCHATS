@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { Fjalla_One } from 'next/font/google'
 import type { ReactNode } from 'react'
 
+import { BrowserMessageNotifications } from '@/components/browser-message-notifications'
+
 import './globals.css'
 
 const squeeze = Fjalla_One({
@@ -19,7 +21,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="ko" className={squeeze.variable}>
-      <body>{children}</body>
+      <body><BrowserMessageNotifications />{children}</body>
     </html>
   )
 }

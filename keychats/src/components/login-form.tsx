@@ -19,6 +19,9 @@ export function LoginForm() {
       <form action={formAction} className="mt-8 space-y-5">
         <label className="block"><span className="mb-2 block text-sm font-medium text-zinc-950">아이디</span><input name="loginId" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} required maxLength={24} className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-black/35" /></label>
         <label className="block"><span className="mb-2 block text-sm font-medium text-zinc-950">비밀번호</span><input name="password" type="password" autoComplete="current-password" required className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition focus:border-black/35" /></label>
+        <div className="flex justify-end">
+          <Link href="/forgot-password" className="text-xs font-semibold text-zinc-600 underline underline-offset-4">비밀번호를 잊으셨나요?</Link>
+        </div>
         {state.error ? <p role="alert" className="text-sm text-red-600">{state.error}</p> : null}
         <button type="submit" disabled={pending} className="w-full rounded-xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{pending ? '로그인 중…' : '로그인'}</button>
       </form>

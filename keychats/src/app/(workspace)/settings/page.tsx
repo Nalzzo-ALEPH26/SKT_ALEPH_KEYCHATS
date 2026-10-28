@@ -1,4 +1,5 @@
 import { AvatarUploader } from '@/components/avatar-uploader'
+import { BrowserNotificationSetting } from '@/components/browser-notification-setting'
 import { PasswordChangeForm } from '@/components/password-change-form'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { requireActiveUser } from '@/lib/auth/guards'
@@ -62,6 +63,13 @@ export default async function SettingsPage() {
         <form action={updateThemeAction} className="mt-4">
           <ThemeToggle theme={theme} />
         </form>
+      </section>
+
+      <section className="mt-4 rounded-2xl border border-current/10 p-5">
+        <h2 className="text-sm font-semibold">브라우저 알림</h2>
+        <div className="mt-2">
+          <BrowserNotificationSetting />
+        </div>
       </section>
 
       <section className="mt-4 rounded-2xl border border-current/10 p-5">

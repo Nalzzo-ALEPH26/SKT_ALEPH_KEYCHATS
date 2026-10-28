@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 
 import { AdminPanel } from '@/components/admin-panel'
+import { PasswordResetAdminPanel } from '@/components/password-reset-admin-panel'
 import { AuthGuardError, requireAdmin } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
 import { listManagedUsers } from '@/lib/admin/service'
@@ -46,6 +47,7 @@ export default async function AdminPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Keychats Admin</p>
         <h1 className="mt-2 text-2xl font-semibold">관리자</h1>
       </div>
+      <PasswordResetAdminPanel />
       <AdminPanel initialUsers={users} initialInvites={invites} initialSignupRequests={signupRequests} />
     </main>
   )
