@@ -48,11 +48,25 @@ export async function toggleMessagePinAction(input: { messageId: number }) {
 export async function markConversationReadAction(
   input: ReadStateTarget & { lastReadMessageId: number | null },
 ) {
+  if (input.dmThreadId) return
   const { actor, repository } = await getMessageStateContext()
   await markRoomRead(
     repository,
     actor,
-    { channelId: input.channelId, dmThreadId: input.dmThreadId },
+    { channelId: input.channelId, dmThreadId: null },
+    input.lastReadMessageId,
+  )
+}
+
+export async function markDmConversationReadVisibleAction(input: {
+  dmThreadId: string
+  lastReadMessageId: number
+}) {
+  const { actor, repository } = await getMessageStateContext()
+  await markRoomRead(
+    repository,
+    actor,
+    { channelId: null, dmThreadId: input.dmThreadId },
     input.lastReadMessageId,
   )
 }

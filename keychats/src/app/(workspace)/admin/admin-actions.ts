@@ -16,6 +16,7 @@ import {
   rejectSignupRequest,
 } from '@/lib/admin/signup-requests'
 import { createSupabaseSignupReviewRepository } from '@/lib/admin/signup-requests-supabase'
+import { issuePasswordReset, listPendingPasswordResetRequests } from '@/lib/password-reset/service'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -38,6 +39,18 @@ export async function listUsersAction() {
 export async function listSignupRequestsAction() {
   const { signupRepository } = await requireAdminContext()
   return listPendingSignupRequests(signupRepository)
+}
+
+
+export async function listPasswordResetRequestsAction() {
+  await requireAdminContext()
+  return listPendingPasswordResetRequests(createAdminClient())
+}
+
+export async function issuePasswordResetAction(requestId: string) {
+  const { reviewerId } = await requireAdminContext()
+  await issuePasswordReset(createAdminClient(), requestId, reviewerId)
+  return { status: 'issued' as const }
 }
 
 export async function approveSignupRequestAction(requestId: string) {
