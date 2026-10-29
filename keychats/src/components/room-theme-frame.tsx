@@ -1,10 +1,16 @@
 'use client'
-import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react'
 import { setRoomThemeAction } from '@/app/(workspace)/room-theme-actions'
 import { createClient } from '@/lib/supabase/client'
 import { defaultRoomTheme, newerRoomTheme, normalizeRoomTheme, roomThemeKey, roomThemes, type RoomThemeSnapshot, type ThemeTarget } from '@/lib/themes/room-theme'
 import './room-theme.css'
 type Props = { target: ThemeTarget; initial: RoomThemeSnapshot; unavailable?: boolean; canChange: boolean; children: ReactNode }
+const RoomThemeControls = createContext<{ canChange: boolean; open: () => void } | null>(null)
+export function RoomThemeButton() {
+  const controls = useContext(RoomThemeControls)
+  if (!controls?.canChange) return null
+  return <button type="button" data-room-theme-trigger onClick={controls.open} className="rt-trigger">대화방 테마</button>
+}
 export function RoomThemeFrame({ target, initial, unavailable = false, canChange, children }: Props) {
   const [snapshot, setSnapshot] = useState(initial)
   const [selected, setSelected] = useState(initial.theme_id)
@@ -43,11 +49,11 @@ export function RoomThemeFrame({ target, initial, unavailable = false, canChange
   }, [client,key])
   const themeName = roomThemes.find(t => t.id === snapshot.theme_id)?.name ?? '기본'
   function open() { setSelected(snapshot.theme_id); setError(''); dialog.current?.showModal() }
-  function apply() {
+  function apply(themeId = selected) {
     startTransition(async () => {
       setError('')
       try {
-        const result = await setRoomThemeAction(target,selected)
+        const result = await setRoomThemeAction(target,themeId)
         if (result.error || !result.snapshot) { setError(result.error ?? '테마를 저장하지 못했습니다.'); return }
         setSnapshot(current => newerRoomTheme(current,result.snapshot!))
         setSyncError(false)
@@ -56,18 +62,17 @@ export function RoomThemeFrame({ target, initial, unavailable = false, canChange
     })
   }
   return <div data-room-theme={snapshot.theme_id} className="room-theme-frame">
-    <div className="rt-toolbar"><span className="rt-state">{themeName} · 대화방 공통 테마</span>{canChange ? <button type="button" data-room-theme-trigger onClick={open} className="rt-trigger">대화방 테마</button> : <span className="rt-state">생성자·관리자 변경 가능</span>}</div>
-    {syncError ? <p className="rt-warning" role="status">테마를 동기화하지 못했습니다. 연결 또는 DB 설정을 확인해주세요.</p> : null}
-    {snapshot.revision > 0 ? <p className="rt-event" role="status">{snapshot.updated_by_name}님이 테마를 ‘{themeName}’로 변경했어요.{snapshot.updated_at ? <time dateTime={snapshot.updated_at}> {new Date(snapshot.updated_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</time> : null}</p> : null}
-    <div className="rt-content">{children}</div>
+    {snapshot.revision > 0 && snapshot.theme_id !== 'default' ? <p className="rt-event" role="status">{snapshot.updated_by_name}님이 테마를 ‘{themeName}’로 변경했어요.{snapshot.updated_at ? <time dateTime={snapshot.updated_at}> {new Date(snapshot.updated_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</time> : null}</p> : null}
+    <RoomThemeControls.Provider value={{ canChange, open }}><div className="rt-content">{children}</div></RoomThemeControls.Provider>
     {canChange ? <dialog ref={dialog} aria-labelledby="room-theme-title" className="rt-dialog" onCancel={e => { if (pending) e.preventDefault() }} onClick={e => { if (pending || e.target !== dialog.current) return; const b=dialog.current.getBoundingClientRect(); if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)dialog.current.close() }}>
       <div className="rt-dialog-heading"><h2 id="room-theme-title">대화방 테마</h2><button type="button" aria-label="닫기" disabled={pending} onClick={() => dialog.current?.close()} className="rt-close">×</button></div>
       <div className="rt-options" role="group" aria-label="테마 선택">{roomThemes.map(t => <button key={t.id} type="button" className="rt-option" data-room-theme={t.id} aria-pressed={selected === t.id} disabled={pending} onClick={() => setSelected(t.id)}><span className="rt-swatch"><span className="rt-sample-other"/><span className="rt-sample-own"/></span><span>{t.name}</span></button>)}</div>
       <p className="rt-preview-label">{roomThemes.find(t => t.id === selected)?.name} 미리보기</p>
       <div className="rt-preview" data-room-theme={selected}><p className="rt-preview-other">이 테마 어때?</p><p className="rt-preview-own">우리 대화방에 잘 어울려 😊</p></div>
       <p className="rt-scope">적용하면 <strong>이 대화방의 모든 참여자</strong>에게 동일하게 반영됩니다.</p>
-      {error ? <p className="rt-error" role="alert">{error}</p> : null}
-      <div className="rt-dialog-footer"><button type="button" className="rt-reset" disabled={pending} onClick={() => setSelected(defaultRoomTheme.theme_id)}>기본 테마 선택</button><button type="button" className="rt-apply" disabled={pending} onClick={apply}>{pending ? '적용 중…' : '모두에게 적용'}</button></div>
+      {error || syncError ? <p className="rt-error" role="alert">{error || '테마 연결을 확인하지 못했습니다. SQL 적용 전에는 테마를 저장할 수 없습니다.'}</p> : null}
+      <div className="rt-dialog-footer"><button type="button" className="rt-reset" disabled={pending} onClick={() => apply(defaultRoomTheme.theme_id)}>기본으로 복원</button><button type="button" className="rt-apply" disabled={pending} onClick={() => apply()}>{pending ? '적용 중…' : '모두에게 적용'}</button></div>
     </dialog> : null}
   </div>
 }
+

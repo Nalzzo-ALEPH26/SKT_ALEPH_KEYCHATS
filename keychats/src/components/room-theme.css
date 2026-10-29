@@ -4,7 +4,7 @@
 [data-room-theme=mint]{--rt-bg:#e8f4ef;--rt-surface:#fcfffd;--rt-text:#24483c;--rt-muted:#4e7062;--rt-own:#28775f;--rt-own-text:#fff;--rt-border:#aacbbc;--rt-accent:#23664f}
 [data-room-theme=sunset]{--rt-bg:linear-gradient(160deg,#fff0dc,#f9dde5);--rt-surface:#fffaf6;--rt-text:#593c42;--rt-muted:#815b63;--rt-own:linear-gradient(135deg,#b94c64,#a6483a);--rt-own-text:#fff;--rt-border:#dfb4b3;--rt-accent:#a53c56}
 [data-room-theme=midnight]{--rt-bg:linear-gradient(150deg,#171c32,#232d4c);--rt-surface:#303a56;--rt-text:#f1f3fc;--rt-muted:#bdc8df;--rt-own:linear-gradient(135deg,#4e67ba,#6553af);--rt-own-text:#fff;--rt-border:#637291;--rt-accent:#c0cbff}
-.room-theme-frame{height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:var(--rt-bg);color:var(--rt-text)}
+.room-theme-frame{height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .room-theme-frame .rt-content{flex:1;min-height:0;display:flex;flex-direction:column}.room-theme-frame .rt-content>div{height:100%;min-height:0}
 .room-theme-frame .rt-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--rt-border)}
 .room-theme-frame .rt-state,.room-theme-frame .rt-event{font-size:11px;color:var(--rt-muted)}.room-theme-frame .rt-event{padding:6px 20px;text-align:center;flex-shrink:0}.room-theme-frame .rt-event time{opacity:.85}.room-theme-frame .rt-trigger{border:1px solid var(--rt-border);border-radius:8px;padding:8px 12px;background:var(--rt-surface);color:var(--rt-text);font-size:12px;cursor:pointer}.room-theme-frame .rt-warning{font-size:12px;padding:6px 20px;color:var(--rt-text)}
@@ -26,3 +26,8 @@
 @media(max-width:550px){.room-theme-frame .rt-toolbar{padding:8px 16px}.room-theme-frame .rt-dialog{padding:18px}.room-theme-frame .rt-options{gap:9px}.room-theme-frame .rt-event{font-size:10px}}
 
 .room-theme-frame:not([data-room-theme=default]) [data-sticky-composer]>div{background:var(--rt-surface);color:var(--rt-text)}
+
+
+/* Default is deliberately transparent: original light/dark chat styles own its appearance. */
+.room-theme-frame:not([data-room-theme=default]){background:var(--rt-bg);color:var(--rt-text)}
+.room-theme-frame[data-room-theme=default]>.rt-content{background:transparent;color:inherit}

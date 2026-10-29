@@ -1,4 +1,4 @@
-import { RoomThemeFrame } from '@/components/room-theme-frame'
+import { RoomThemeFrame, RoomThemeButton } from '@/components/room-theme-frame'
 import { loadRoomTheme } from '@/lib/themes/server'
 import { notFound } from 'next/navigation'
 
@@ -93,6 +93,7 @@ export default async function ChannelPage({ params }: PageProps) {
           </p>
         </div>
         <div className="flex w-full max-w-sm flex-col gap-2 sm:w-auto">
+          <RoomThemeButton />
           <ChannelDialog profiles={allProfiles} currentUserId={profile.user_id} action={createChannelAction} />
           <MemberDialog
             channelId={channel.id}
@@ -121,3 +122,4 @@ export default async function ChannelPage({ params }: PageProps) {
     </RoomThemeFrame>
   )
 }
+
