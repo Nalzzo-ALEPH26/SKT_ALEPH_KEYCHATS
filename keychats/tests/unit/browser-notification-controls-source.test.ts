@@ -39,14 +39,18 @@ describe('per-room browser notifications and admin alerts', () => {
   })
 })
 
-describe('background tab attention', () => {
-  it('alternates a large red and black favicon while the unread title blinks, then clears when Keychats becomes visible again', () => {
+describe('DM unread tab attention', () => {
+  it('alternates a large red and black favicon while DM unread remains, then clears only when unread reaches zero', () => {
     const listener = source('../../src/components/browser-message-notifications.tsx')
     const attention = source('../../src/lib/notifications/tab-attention.ts')
 
     expect(listener).toContain('createTabAttentionController')
-    expect(listener).toContain('attention.alert()')
+    expect(listener).toContain("client.rpc('get_unread_counts')")
+    expect(listener).toContain("row.room_type === 'dm'")
+    expect(listener).toContain('attention.setUnreadCount(dmUnreadCount)')
+    expect(listener).toContain("table: 'read_states'")
     expect(listener).toContain("document.addEventListener('visibilitychange'")
+    expect(listener).not.toContain('attention.alert()')
     expect(attention).toContain('document.title')
     expect(attention).toContain("querySelector<HTMLLinkElement>('link[rel~=\"icon\"]')")
     expect(attention).toContain('<circle cx="32" cy="32" r="30" fill="#ff2d20"/>')
@@ -55,6 +59,7 @@ describe('background tab attention', () => {
     expect(attention).not.toContain('🔴 ${unreadCount} 새 메시지 · KEYCHATS')
     expect(attention).toContain('showAlertState ? RED_ALERT_FAVICON : BLACK_ALERT_FAVICON')
     expect(attention).toContain('setInterval')
+    expect(attention).toContain('const setUnreadCount = (count: number) =>')
     expect(attention).toContain('const clear = () =>')
   })
 })

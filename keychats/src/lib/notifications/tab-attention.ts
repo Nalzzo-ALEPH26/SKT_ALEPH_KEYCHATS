@@ -1,6 +1,7 @@
 export type TabAttentionController = {
   alert: () => void
   clear: () => void
+  setUnreadCount: (count: number) => void
   dispose: () => void
 }
 
@@ -54,8 +55,14 @@ export function createTabAttentionController(document: Document): TabAttentionCo
     else if (icon) icon.href = originalIconHref
   }
 
-  const alert = () => {
-    unreadCount += 1
+  const setUnreadCount = (count: number) => {
+    const nextCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0
+    if (nextCount <= 0) {
+      clear()
+      return
+    }
+
+    unreadCount = nextCount
     showAlertState = true
     render()
     if (!intervalId) {
@@ -66,9 +73,14 @@ export function createTabAttentionController(document: Document): TabAttentionCo
     }
   }
 
+  const alert = () => {
+    setUnreadCount(unreadCount + 1)
+  }
+
   return {
     alert,
     clear,
+    setUnreadCount,
     dispose: clear,
   }
 }
