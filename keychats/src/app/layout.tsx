@@ -16,6 +16,9 @@ const squeeze = Fjalla_One({
 export const metadata: Metadata = {
   title: 'Keychats',
   description: 'Private team chat',
+  icons: {
+    icon: '/chats/keychats-tab-icon.svg',
+  },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
