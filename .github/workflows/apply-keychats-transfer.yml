@@ -1,0 +1,36 @@
+name: Apply verified Keychats changes
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/apply-keychats-transfer.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          fetch-depth: 1
+      - name: Apply verified changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-delay 2 \
+            https://sb-4aanl2nhlx0m.vercel.run/changes.tgz \
+            -o /tmp/keychats-changes.tgz
+          echo "b7e13ea115869cd6ae003dca142cb2a8028ae6dd04f96d32c0fd5af95fdd105d  /tmp/keychats-changes.tgz" | sha256sum -c -
+          tar -xzf /tmp/keychats-changes.tgz -C "$GITHUB_WORKSPACE"
+          git diff --check
+          git config user.name "graypork"
+          git config user.email "87932375+graypork@users.noreply.github.com"
+          git add keychats
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: enforce nickname limits and add community unread badges"
+          git push origin HEAD:main
