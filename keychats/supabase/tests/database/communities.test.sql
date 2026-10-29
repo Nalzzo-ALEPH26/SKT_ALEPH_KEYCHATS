@@ -9,8 +9,8 @@ insert into auth.users (id, email) values
   ('55555555-5555-5555-5555-555555555555', 'community-admin@keychats.test');
 
 insert into public.profiles (user_id, username, display_name, status) values
-  ('11111111-1111-1111-1111-111111111111', 'community_member', 'Community Member', 'active'),
-  ('22222222-2222-2222-2222-222222222222', 'community_member2', 'Community Member 2', 'active'),
+  ('11111111-1111-1111-1111-111111111111', 'community_member', 'Community One', 'active'),
+  ('22222222-2222-2222-2222-222222222222', 'community_member2', 'Community Two', 'active'),
   ('55555555-5555-5555-5555-555555555555', 'cxu1344', 'Admin', 'active');
 
 select has_table('public', 'communities', 'communities table exists');

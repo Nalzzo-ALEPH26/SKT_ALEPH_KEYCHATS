@@ -76,7 +76,7 @@ insert into public.signup_requests (id, auth_user_id, username, display_name) va
 select throws_ok(
   $$
     insert into public.signup_requests (auth_user_id, username, display_name)
-    values ('10000000-0000-0000-0000-000000000003', 'reuse_me', 'Duplicate Pending')
+    values ('10000000-0000-0000-0000-000000000003', 'reuse_me', 'Duplicate Req')
   $$,
   '23505',
   null,
