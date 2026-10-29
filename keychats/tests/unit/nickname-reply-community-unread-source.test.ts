@@ -46,4 +46,12 @@ describe('community unread sidebar badges', () => {
     expect(migration).toContain('get_community_unread_counts')
     expect(migration).toContain('alter publication supabase_realtime add table public.community_posts')
   })
+
+  it('persists a community read on the server before a later refresh can recreate the badge', () => {
+    const page = source('../../src/app/(workspace)/community/[communityId]/page.tsx')
+    expect(page).toContain("import { markCommunityRead } from '@/lib/community/unread'")
+    expect(page).toContain('const latestVisiblePostAt =')
+    expect(page).toContain('await markCommunityRead(client, {')
+    expect(page).toContain('lastReadAt: latestVisiblePostAt')
+  })
 })

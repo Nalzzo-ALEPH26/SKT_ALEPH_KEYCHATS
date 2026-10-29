@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { CommunityComposer } from '@/components/community-composer'
 import { requireActiveUser } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
+import { markCommunityRead } from '@/lib/community/unread'
 import { createClient } from '@/lib/supabase/server'
 import { formatSeoulDateTime } from '@/lib/time/format'
 
@@ -36,6 +37,13 @@ export default async function CommunityPage({ params }: PageProps) {
   if (!community) notFound()
   if (postsError) throw postsError
   if (profilesError) throw profilesError
+
+  const latestVisiblePostAt = (posts?.[0]?.created_at as string | undefined) ?? new Date().toISOString()
+  await markCommunityRead(client, {
+    userId: claims.sub,
+    communityId,
+    lastReadAt: latestVisiblePostAt,
+  })
 
   const postIds = (posts ?? []).map((post) => post.id as string)
   let postPins: Array<{ post_id: string; pinned_at: string }> = []
