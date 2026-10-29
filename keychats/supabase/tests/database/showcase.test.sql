@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(10);
 select has_table('public', 'showcase_sites', 'site table exists');
 select has_table('public', 'showcase_comments', 'comment table exists');
 select ok((select relrowsecurity from pg_class where oid='public.showcase_sites'::regclass), 'sites use RLS');
@@ -8,5 +8,7 @@ select ok(not has_table_privilege('anon','public.showcase_sites','SELECT'), 'ano
 select ok(not has_column_privilege('authenticated','public.showcase_sites','author_id','UPDATE'), 'author cannot be reassigned');
 select ok(not has_column_privilege('authenticated','public.showcase_sites','created_at','UPDATE'), 'creation date cannot be changed');
 select ok(not has_table_privilege('authenticated','public.showcase_comments','UPDATE'), 'comments cannot be reassigned or edited');
+select has_index('public', 'showcase_sites', 'showcase_sites_author_id_idx', 'site author foreign key is indexed');
+select has_index('public', 'showcase_comments', 'showcase_comments_author_id_idx', 'comment author foreign key is indexed');
 select * from finish();
 rollback;
