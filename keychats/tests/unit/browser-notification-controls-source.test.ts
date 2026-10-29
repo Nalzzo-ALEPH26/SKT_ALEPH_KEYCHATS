@@ -40,7 +40,7 @@ describe('per-room browser notifications and admin alerts', () => {
 })
 
 describe('DM unread tab attention', () => {
-  it('alternates a large red and black favicon while DM unread remains, then clears only when unread reaches zero', () => {
+  it('alternates a large red and black alert favicon while preserving the default icon until unread reaches zero', () => {
     const listener = source('../../src/components/browser-message-notifications.tsx')
     const attention = source('../../src/lib/notifications/tab-attention.ts')
 
@@ -52,7 +52,9 @@ describe('DM unread tab attention', () => {
     expect(listener).toContain("document.addEventListener('visibilitychange'")
     expect(listener).not.toContain('attention.alert()')
     expect(attention).toContain('document.title')
-    expect(attention).toContain("querySelector<HTMLLinkElement>('link[rel~=\"icon\"]')")
+    expect(attention).toContain("const ALERT_ICON_SELECTOR = 'link[data-keychats-alert-icon=\"true\"]'")
+    expect(attention).toContain("nextIcon.setAttribute('data-keychats-alert-icon', 'true')")
+    expect(attention).toContain('document.head.appendChild(nextIcon)')
     expect(attention).toContain('<circle cx="32" cy="32" r="30" fill="#ff2d20"/>')
     expect(attention).toContain('<circle cx="32" cy="32" r="30" fill="#000000"/>')
     expect(attention).toContain('${unreadCount} 새 메시지 · KEYCHATS')
@@ -61,5 +63,6 @@ describe('DM unread tab attention', () => {
     expect(attention).toContain('setInterval')
     expect(attention).toContain('const setUnreadCount = (count: number) =>')
     expect(attention).toContain('const clear = () =>')
+    expect(attention).toContain('removeAlertIcon()')
   })
 })

@@ -49,7 +49,7 @@ describe('password reset, DM read receipts and browser notifications', () => {
     expect(listener).not.toContain('attention.clear()')
   })
 
-  it('uses the Keychats artwork as the default favicon and restores it after tab attention clears', () => {
+  it('keeps the Keychats artwork as the untouched default favicon while alert icons are temporary overrides', () => {
     const layout = source('../../src/app/layout.tsx')
     const attention = source('../../src/lib/notifications/tab-attention.ts')
     const icon = source('../../public/keychats-tab-icon.svg')
@@ -57,8 +57,10 @@ describe('password reset, DM read receipts and browser notifications', () => {
     expect(layout).toContain("icon: '/chats/keychats-tab-icon.svg'")
     expect(icon).toContain('linearGradient id="keychats-blue"')
     expect(icon).toContain('aria-label="Keychats"')
-    expect(attention).toContain('const originalIconHref = icon.href')
-    expect(attention).toContain('icon.href = originalIconHref')
+    expect(attention).toContain("nextIcon.setAttribute('data-keychats-alert-icon', 'true')")
+    expect(attention).toContain('document.head.appendChild(nextIcon)')
+    expect(attention).toContain('removeAlertIcon()')
+    expect(attention).not.toContain('originalIconHref')
     expect(attention).toContain('RED_ALERT_FAVICON')
     expect(attention).toContain('BLACK_ALERT_FAVICON')
   })
