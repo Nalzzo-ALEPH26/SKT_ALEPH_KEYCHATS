@@ -38,6 +38,17 @@ describe('password reset, DM read receipts and browser notifications', () => {
     expect(layout).toContain('<BrowserMessageNotifications />')
   })
 
+  it('drives tab attention from actual DM unread rows instead of focus state or channel messages', () => {
+    const listener = source('../../src/components/browser-message-notifications.tsx')
+
+    expect(listener).toContain("client.rpc('get_unread_counts')")
+    expect(listener).toContain("row.room_type === 'dm'")
+    expect(listener).toContain("table: 'read_states'")
+    expect(listener).toContain('attention.setUnreadCount(dmUnreadCount)')
+    expect(listener).not.toContain('attention.alert()')
+    expect(listener).not.toContain('attention.clear()')
+  })
+
   it('uses the Keychats artwork as the default favicon and restores it after tab attention clears', () => {
     const layout = source('../../src/app/layout.tsx')
     const attention = source('../../src/lib/notifications/tab-attention.ts')
