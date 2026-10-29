@@ -154,11 +154,11 @@ test('creates a member channel and covers attachment, reaction, pin, unread, the
   try {
     const first = await createUser(admin, {
       loginId: `accept_a_${suffix}`.slice(0, 24),
-      displayName: 'Acceptance Alpha',
+      displayName: 'Accept Alpha',
     })
     const second = await createUser(admin, {
       loginId: `accept_b_${suffix}`.slice(0, 24),
-      displayName: 'Acceptance Beta',
+      displayName: 'Accept Beta',
     })
     users.push(first, second)
 
@@ -180,7 +180,7 @@ test('creates a member channel and covers attachment, reaction, pin, unread, the
     const createDetails = firstPage.locator('details').filter({ hasText: '채널 만들기' }).first()
     await createDetails.locator('summary').click()
     await createDetails.getByLabel('채널 이름').fill(newChannelName)
-    await createDetails.getByRole('checkbox', { name: /Acceptance Beta/ }).check()
+    await createDetails.getByRole('checkbox', { name: /Accept Beta/ }).check()
     await createDetails.getByRole('button', { name: '만들기' }).click()
 
     const baseChannelUrl = `http://localhost:3000/chats/channel/${baseChannelId}`
@@ -322,7 +322,7 @@ test('uses a one-time invite and immediately blocks a disabled member with an ex
   try {
     const adminUser = await createUser(admin, {
       loginId: 'cxu1344',
-      displayName: 'Acceptance Admin',
+      displayName: 'Accept Admin',
       role: 'admin',
     })
     users.push(adminUser)
@@ -349,7 +349,7 @@ test('uses a one-time invite and immediately blocks a disabled member with an ex
     const memberPage = await memberContext.newPage()
     await memberPage.goto(inviteUrl!)
     await memberPage.getByLabel('아이디').fill(invitedLogin)
-    await memberPage.getByLabel('표시 이름').fill('Invited Acceptance')
+    await memberPage.getByLabel('표시 이름').fill('Invited User')
     await memberPage.getByLabel('비밀번호').fill(password)
     await memberPage.getByRole('button', { name: '계정 만들기' }).click()
     await expect(memberPage).toHaveURL(/\/chats\/login\?registered=1$/)
@@ -372,7 +372,7 @@ test('uses a one-time invite and immediately blocks a disabled member with an ex
     const reusePage = await reuseContext.newPage()
     await reusePage.goto(inviteUrl!)
     await reusePage.getByLabel('아이디').fill(`reuse_${suffix}`.slice(0, 24))
-    await reusePage.getByLabel('표시 이름').fill('Should Not Register')
+    await reusePage.getByLabel('표시 이름').fill('No Register')
     await reusePage.getByLabel('비밀번호').fill(password)
     await reusePage.getByRole('button', { name: '계정 만들기' }).click()
     await expect(
