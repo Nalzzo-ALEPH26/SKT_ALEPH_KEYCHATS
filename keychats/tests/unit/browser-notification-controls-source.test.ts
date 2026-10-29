@@ -40,7 +40,7 @@ describe('per-room browser notifications and admin alerts', () => {
 })
 
 describe('background tab attention', () => {
-  it('keeps a large red favicon dot visible while the title blinks, then clears when Keychats becomes visible again', () => {
+  it('alternates a large red and black favicon while the unread title blinks, then clears when Keychats becomes visible again', () => {
     const listener = source('../../src/components/browser-message-notifications.tsx')
     const attention = source('../../src/lib/notifications/tab-attention.ts')
 
@@ -50,8 +50,10 @@ describe('background tab attention', () => {
     expect(attention).toContain('document.title')
     expect(attention).toContain("querySelector<HTMLLinkElement>('link[rel~=\"icon\"]')")
     expect(attention).toContain('<circle cx="32" cy="32" r="30" fill="#ff2d20"/>')
-    expect(attention).toContain('🔴 ${unreadCount} 새 메시지 · KEYCHATS')
-    expect(attention).toContain('icon!.href = ALERT_FAVICON')
+    expect(attention).toContain('<circle cx="32" cy="32" r="30" fill="#000000"/>')
+    expect(attention).toContain('${unreadCount} 새 메시지 · KEYCHATS')
+    expect(attention).not.toContain('🔴 ${unreadCount} 새 메시지 · KEYCHATS')
+    expect(attention).toContain('showAlertState ? RED_ALERT_FAVICON : BLACK_ALERT_FAVICON')
     expect(attention).toContain('setInterval')
     expect(attention).toContain('const clear = () =>')
   })

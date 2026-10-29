@@ -4,9 +4,14 @@ export type TabAttentionController = {
   dispose: () => void
 }
 
-const ALERT_FAVICON = `data:image/svg+xml,${encodeURIComponent(`
+const RED_ALERT_FAVICON = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <circle cx="32" cy="32" r="30" fill="#ff2d20"/>
+</svg>`)}`
+
+const BLACK_ALERT_FAVICON = `data:image/svg+xml,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="30" fill="#000000"/>
 </svg>`)}`
 
 export function createTabAttentionController(document: Document): TabAttentionController {
@@ -32,9 +37,9 @@ export function createTabAttentionController(document: Document): TabAttentionCo
     }
 
     document.title = showAlertState
-      ? `🔴 ${unreadCount} 새 메시지 · KEYCHATS`
+      ? `${unreadCount} 새 메시지 · KEYCHATS`
       : originalTitle
-    icon!.href = ALERT_FAVICON
+    icon!.href = showAlertState ? RED_ALERT_FAVICON : BLACK_ALERT_FAVICON
   }
 
   const clear = () => {
