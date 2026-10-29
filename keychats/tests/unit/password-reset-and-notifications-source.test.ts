@@ -37,4 +37,18 @@ describe('password reset, DM read receipts and browser notifications', () => {
     expect(listener).toContain("document.visibilityState === 'visible' && document.hasFocus()")
     expect(layout).toContain('<BrowserMessageNotifications />')
   })
+
+  it('uses the Keychats artwork as the default favicon and restores it after tab attention clears', () => {
+    const layout = source('../../src/app/layout.tsx')
+    const attention = source('../../src/lib/notifications/tab-attention.ts')
+    const icon = source('../../public/keychats-tab-icon.svg')
+
+    expect(layout).toContain("icon: '/chats/keychats-tab-icon.svg'")
+    expect(icon).toContain('linearGradient id="keychats-blue"')
+    expect(icon).toContain('aria-label="Keychats"')
+    expect(attention).toContain('const originalIconHref = icon.href')
+    expect(attention).toContain('icon.href = originalIconHref')
+    expect(attention).toContain('RED_ALERT_FAVICON')
+    expect(attention).toContain('BLACK_ALERT_FAVICON')
+  })
 })
