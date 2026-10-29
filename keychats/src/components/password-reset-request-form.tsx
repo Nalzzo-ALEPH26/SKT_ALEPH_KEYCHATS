@@ -12,9 +12,12 @@ import type { PasswordResetStatus } from '@/lib/password-reset/types'
 
 const initialState: PasswordResetRequestState = { submitted: false, error: null }
 
+type CopyStatus = 'idle' | 'copied' | 'error'
+
 export function PasswordResetRequestForm() {
   const [state, formAction, pending] = useActionState(requestTemporaryPasswordAction, initialState)
   const [result, setResult] = useState<PasswordResetStatus>({ status: 'pending' })
+  const [copyStatus, setCopyStatus] = useState<CopyStatus>('idle')
 
   useEffect(() => {
     if (!state.submitted) return
@@ -34,6 +37,16 @@ export function PasswordResetRequestForm() {
       window.clearInterval(timer)
     }
   }, [state.submitted])
+
+  const copyTemporaryPassword = async (temporaryPassword: string) => {
+    try {
+      await navigator.clipboard.writeText(temporaryPassword)
+      setCopyStatus('copied')
+      window.setTimeout(() => setCopyStatus('idle'), 1800)
+    } catch {
+      setCopyStatus('error')
+    }
+  }
 
   return (
     <section className="w-full max-w-sm rounded-3xl border border-black/5 bg-white p-8 shadow-sm">
@@ -56,7 +69,11 @@ export function PasswordResetRequestForm() {
         <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-zinc-950">
           <p className="text-sm font-semibold">임시 비밀번호가 발급되었습니다.</p>
           <code className="mt-3 block break-all rounded-xl bg-white px-3 py-3 text-base">{result.temporaryPassword}</code>
-          <button type="button" onClick={() => void navigator.clipboard.writeText(result.temporaryPassword)} className="mt-3 text-sm font-semibold underline underline-offset-4">복사</button>
+          <div className="mt-3 flex items-center gap-3">
+            <button type="button" onClick={() => void copyTemporaryPassword(result.temporaryPassword)} className="text-sm font-semibold underline underline-offset-4">복사</button>
+            {copyStatus === 'copied' ? <span role="status" aria-live="polite" className="text-sm font-semibold text-emerald-700">복사되었습니다.</span> : null}
+            {copyStatus === 'error' ? <span role="alert" className="text-sm font-semibold text-red-600">복사에 실패했습니다.</span> : null}
+          </div>
           <p className="mt-3 text-xs text-zinc-500">로그인 후 설정에서 새 비밀번호로 변경하세요.</p>
         </div>
       ) : result.status === 'expired' ? (
