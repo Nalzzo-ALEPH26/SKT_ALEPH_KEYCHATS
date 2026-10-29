@@ -99,9 +99,11 @@ export function BrowserMessageNotifications() {
         if (!active || error) return
 
         const dmUnreadCount = ((data ?? []) as UnreadCountRow[]).reduce((total, row) => {
-          if (row.room_type !== 'dm') return total
-          const count = Number(row.unread_count)
-          return total + (Number.isFinite(count) && count > 0 ? count : 0)
+          if (row.room_type === 'dm') {
+            const count = Number(row.unread_count)
+            return total + (Number.isFinite(count) && count > 0 ? count : 0)
+          }
+          return total
         }, 0)
         attention.setUnreadCount(dmUnreadCount)
       }
