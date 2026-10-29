@@ -5,6 +5,8 @@ export type TabAttentionController = {
   dispose: () => void
 }
 
+const ALERT_ICON_SELECTOR = 'link[data-keychats-alert-icon="true"]'
+
 const RED_ALERT_FAVICON = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <circle cx="32" cy="32" r="30" fill="#ff2d20"/>
@@ -19,26 +21,37 @@ export function createTabAttentionController(document: Document): TabAttentionCo
   let unreadCount = 0
   let intervalId: ReturnType<typeof setInterval> | null = null
   let showAlertState = true
+  let alertIcon: HTMLLinkElement | null = null
   const originalTitle = document.title
-  let icon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')
-  const createdIcon = !icon
-  if (!icon) {
-    icon = document.createElement('link')
-    icon.rel = 'icon'
-    document.head.appendChild(icon)
+
+  document.querySelector<HTMLLinkElement>(ALERT_ICON_SELECTOR)?.remove()
+
+  const removeAlertIcon = () => {
+    alertIcon?.remove()
+    alertIcon = null
   }
-  const originalIconHref = icon.href
+
+  const replaceAlertIcon = (href: string) => {
+    removeAlertIcon()
+
+    const nextIcon = document.createElement('link')
+    nextIcon.rel = 'icon'
+    nextIcon.type = 'image/svg+xml'
+    nextIcon.href = href
+    nextIcon.setAttribute('data-keychats-alert-icon', 'true')
+    document.head.appendChild(nextIcon)
+    alertIcon = nextIcon
+  }
 
   const render = () => {
-    if (createdIcon && !icon?.isConnected) document.head.appendChild(icon!)
     if (unreadCount <= 0) {
       document.title = originalTitle
-      icon!.href = originalIconHref
+      removeAlertIcon()
       return
     }
 
     document.title = `${unreadCount} 새 메시지 · KEYCHATS`
-    icon!.href = showAlertState ? RED_ALERT_FAVICON : BLACK_ALERT_FAVICON
+    replaceAlertIcon(showAlertState ? RED_ALERT_FAVICON : BLACK_ALERT_FAVICON)
   }
 
   const clear = () => {
@@ -49,8 +62,7 @@ export function createTabAttentionController(document: Document): TabAttentionCo
       intervalId = null
     }
     document.title = originalTitle
-    if (createdIcon) icon?.remove()
-    else if (icon) icon.href = originalIconHref
+    removeAlertIcon()
   }
 
   const setUnreadCount = (count: number) => {

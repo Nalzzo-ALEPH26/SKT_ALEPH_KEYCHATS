@@ -112,7 +112,7 @@ async function startDm(context: BrowserContext, current: E2eUser, other: E2eUser
   return page
 }
 
-test('keeps one canonical 1:1 DM private while syncing messages in realtime', async ({ browser }) => {
+test('keeps one canonical 1:1 DM private while syncing messages and tab attention in realtime', async ({ browser }) => {
   test.setTimeout(60_000)
 
   let fixture: Fixture | null = null
@@ -137,10 +137,38 @@ test('keeps one canonical 1:1 DM private while syncing messages in realtime', as
     expect(response?.status()).toBe(404)
     await expect(outsiderPage.locator('[data-dm-message-pane]')).toHaveCount(0)
 
-    const body = `private-${Date.now()}`
-    await firstPage.getByLabel('메시지 입력').fill(body)
+    await secondPage.goto('/chats/settings')
+    await expect(secondPage).toHaveTitle('Keychats')
+
+    const alertBody = `attention-${Date.now()}`
+    await firstPage.getByLabel('메시지 입력').fill(alertBody)
     await firstPage.locator('[data-send-message]').click()
-    await expect(secondPage.getByText(body, { exact: true })).toBeVisible({ timeout: 10_000 })
+
+    await expect(secondPage).toHaveTitle('1 새 메시지 · KEYCHATS', { timeout: 10_000 })
+
+    const staticIcon = secondPage.locator('link[rel~="icon"]:not([data-keychats-alert-icon])').first()
+    const alertIcon = secondPage.locator('link[data-keychats-alert-icon="true"]')
+    await expect(staticIcon).toHaveAttribute('href', '/chats/keychats-tab-icon.svg')
+    await expect(alertIcon).toHaveCount(1)
+
+    const firstAlertHref = await alertIcon.getAttribute('href')
+    expect(firstAlertHref).toMatch(/^data:image\/svg\+xml/)
+    expect(firstAlertHref).toMatch(/(?:ff2d20|000000)/)
+    await expect
+      .poll(() => alertIcon.getAttribute('href'), { timeout: 4_000 })
+      .not.toBe(firstAlertHref)
+    await expect(staticIcon).toHaveAttribute('href', '/chats/keychats-tab-icon.svg')
+
+    await secondPage.goto(threadUrl)
+    await expect(secondPage.getByText(alertBody, { exact: true })).toBeVisible({ timeout: 10_000 })
+    await expect(secondPage).toHaveTitle('Keychats', { timeout: 10_000 })
+    await expect(alertIcon).toHaveCount(0)
+    await expect(staticIcon).toHaveAttribute('href', '/chats/keychats-tab-icon.svg')
+
+    const realtimeBody = `private-${Date.now()}`
+    await firstPage.getByLabel('메시지 입력').fill(realtimeBody)
+    await firstPage.locator('[data-send-message]').click()
+    await expect(secondPage.getByText(realtimeBody, { exact: true })).toBeVisible({ timeout: 10_000 })
   } finally {
     await firstContext.close()
     await secondContext.close()
