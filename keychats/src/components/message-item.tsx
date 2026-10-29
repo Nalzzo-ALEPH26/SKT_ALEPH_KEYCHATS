@@ -147,7 +147,7 @@ export function MessageItem({
           </button>
         ) : null}
 
-        <div className={`${showSenderInfo ? 'mt-1' : 'mt-0'} max-w-full whitespace-pre-wrap break-words text-left text-sm leading-6 ${isOwn ? `${ownBubbleShape} bg-zinc-950 px-3 py-2 text-white dark:bg-white dark:text-zinc-950` : ''}`}>
+        <div data-message-bubble className={`${showSenderInfo ? 'mt-1' : 'mt-0'} max-w-full whitespace-pre-wrap break-words text-left text-sm leading-6 ${isOwn ? `${ownBubbleShape} bg-zinc-950 px-3 py-2 text-white dark:bg-white dark:text-zinc-950` : ''}`}>
           {isDeleted ? (
             <span className="italic text-zinc-500">삭제된 메시지입니다.</span>
           ) : (

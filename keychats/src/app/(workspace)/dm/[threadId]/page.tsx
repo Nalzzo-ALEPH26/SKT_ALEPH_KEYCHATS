@@ -1,3 +1,5 @@
+import { RoomThemeFrame } from '@/components/room-theme-frame'
+import { loadRoomTheme } from '@/lib/themes/server'
 import { notFound } from 'next/navigation'
 
 import { DmMessagePane } from '@/components/dm-message-pane'
@@ -56,7 +58,10 @@ export default async function DmPage({ params }: PageProps) {
   const counterpart = allProfiles.find((item) => item.userId === otherUserId)
   const initialMessages = await loadDmMessages(createSupabaseMessageRepository(client), threadId)
 
+  const roomTheme = await loadRoomTheme(client, { kind: 'dm', id: threadId })
+
   return (
+    <RoomThemeFrame key={threadId} target={{ kind: 'dm', id: threadId }} initial={roomTheme.initial} unavailable={roomTheme.unavailable} canChange={true}>
     <div className="mx-auto flex h-dvh w-full max-w-5xl flex-col overflow-hidden px-5 py-5 md:px-8">
       <header className="shrink-0 border-b border-black/10 pb-4 dark:border-white/10">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">DIRECT MESSAGE</p>
@@ -73,5 +78,6 @@ export default async function DmPage({ params }: PageProps) {
         isAdmin={claims.app_metadata?.role === 'admin'}
       />
     </div>
+    </RoomThemeFrame>
   )
 }

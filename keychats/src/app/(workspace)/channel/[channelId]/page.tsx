@@ -1,3 +1,5 @@
+import { RoomThemeFrame } from '@/components/room-theme-frame'
+import { loadRoomTheme } from '@/lib/themes/server'
 import { notFound } from 'next/navigation'
 
 import { ChannelDialog } from '@/components/channel-dialog'
@@ -75,7 +77,10 @@ export default async function ChannelPage({ params }: PageProps) {
   const isAdmin = claims.app_metadata?.role === 'admin'
   const canManage = isAdmin || channel.created_by === profile.user_id
 
+  const roomTheme = await loadRoomTheme(client, { kind: 'channel', id: channelId })
+
   return (
+    <RoomThemeFrame key={channelId} target={{ kind: 'channel', id: channelId }} initial={roomTheme.initial} unavailable={roomTheme.unavailable} canChange={Boolean(memberSet.has(profile.user_id) && (isAdmin || (!channel.is_default && channel.created_by === profile.user_id)))}>
     <div className="mx-auto flex h-dvh w-full max-w-5xl flex-col overflow-hidden px-5 py-5 md:px-8">
       <header className="shrink-0 flex flex-wrap items-start justify-between gap-4 border-b border-black/10 pb-4 dark:border-white/10">
         <div>
@@ -113,5 +118,6 @@ export default async function ChannelPage({ params }: PageProps) {
         isAdmin={isAdmin}
       />
     </div>
+    </RoomThemeFrame>
   )
 }
