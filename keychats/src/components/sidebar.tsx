@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import { Fragment } from 'react'
 import { usePathname } from 'next/navigation'
 
 import {
@@ -599,11 +600,12 @@ export function Sidebar({
             <Link href="/feedback" data-sidebar-active={isSidebarHrefActive(pathname, '/feedback') ? 'true' : 'false'} className={linkClass('/feedback')}>
               피드백
             </Link>
+            {!orderedCommunities.some((community) => community.isNotice) ? <Link href="/showcase" data-sidebar-active={isSidebarHrefActive(pathname, '/showcase') ? 'true' : 'false'} className={linkClass('/showcase')}>만들었어요 🔨</Link> : null}
             {orderedCommunities.map((community) => {
               const href = `/community/${community.id}`
               const active = isSidebarHrefActive(pathname, href)
               return (
-                <Link key={community.id} href={href} data-sidebar-active={active ? 'true' : 'false'} className={linkClass(href)}>
+                <Fragment key={community.id}><Link href={href} data-sidebar-active={active ? 'true' : 'false'} className={linkClass(href)}>
                   <span className="flex items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="min-w-0 truncate">{community.name}</span>
@@ -616,6 +618,8 @@ export function Sidebar({
                     <UnreadBadge count={community.unreadCount ?? 0} />
                   </span>
                 </Link>
+                {community.isNotice ? <Link href="/showcase" data-sidebar-active={isSidebarHrefActive(pathname, '/showcase') ? 'true' : 'false'} className={linkClass('/showcase')}>만들었어요 🔨</Link> : null}
+                </Fragment>
               )
             })}
           </div>
