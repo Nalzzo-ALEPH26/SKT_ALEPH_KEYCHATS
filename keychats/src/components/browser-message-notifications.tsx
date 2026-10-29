@@ -29,6 +29,16 @@ type PreferenceChangeDetail = {
   enabled: boolean
 }
 
+type UnreadCountRow = {
+  room_type: 'channel' | 'dm'
+  room_id: string
+  unread_count: number | string
+}
+
+function activeDmThreadId() {
+  return window.location.pathname.match(/\/dm\/([^/]+)\/?$/)?.[1] ?? null
+}
+
 export function BrowserMessageNotifications() {
   const router = useRouter()
 
@@ -38,10 +48,12 @@ export function BrowserMessageNotifications() {
     let active = true
     let realtimeChannel: ReturnType<typeof client.channel> | null = null
     let preferences: BrowserNotificationPreferenceMap = {}
+    let syncDmUnread: (() => Promise<void>) | null = null
 
     const stopRealtime = () => {
       if (realtimeChannel) void client.removeChannel(realtimeChannel)
       realtimeChannel = null
+      syncDmUnread = null
     }
 
     const onPreferenceChanged = (event: Event) => {
@@ -54,16 +66,15 @@ export function BrowserMessageNotifications() {
     }
     window.addEventListener(NOTIFICATION_PREFERENCE_CHANGED_EVENT, onPreferenceChanged)
 
-    const clearAttentionWhenVisible = () => {
-      if (document.visibilityState === 'visible' && document.hasFocus()) attention.clear()
+    const syncAttentionWhenVisible = () => {
+      if (document.visibilityState === 'visible') void syncDmUnread?.()
     }
-    document.addEventListener('visibilitychange', clearAttentionWhenVisible)
-    window.addEventListener('focus', clearAttentionWhenVisible)
+    document.addEventListener('visibilitychange', syncAttentionWhenVisible)
+    window.addEventListener('focus', syncAttentionWhenVisible)
 
     const showAdminNotification = (event: AdminNotificationEventRow) => {
       window.dispatchEvent(new Event(ADMIN_PENDING_CHANGED_EVENT))
       if (document.visibilityState === 'visible' && document.hasFocus()) return
-      attention.alert()
       if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
 
       const body = event.kind === 'signup_request'
@@ -83,6 +94,19 @@ export function BrowserMessageNotifications() {
     const startRealtime = async (accessToken: string, currentUserId: string, isAdmin: boolean) => {
       stopRealtime()
 
+      const syncCurrentDmUnread = async () => {
+        const { data, error } = await client.rpc('get_unread_counts')
+        if (!active || error) return
+
+        const dmUnreadCount = ((data ?? []) as UnreadCountRow[]).reduce((total, row) => {
+          if (row.room_type !== 'dm') return total
+          const count = Number(row.unread_count)
+          return total + (Number.isFinite(count) && count > 0 ? count : 0)
+        }, 0)
+        attention.setUnreadCount(dmUnreadCount)
+      }
+      syncDmUnread = syncCurrentDmUnread
+
       const { data: preferenceRows } = await client
         .from('browser_notification_preferences')
         .select('room_type,room_id,enabled')
@@ -92,6 +116,8 @@ export function BrowserMessageNotifications() {
       )
 
       await client.realtime.setAuth(accessToken)
+      if (!active) return
+      await syncCurrentDmUnread()
       if (!active) return
 
       const channel = client
@@ -103,6 +129,17 @@ export function BrowserMessageNotifications() {
             const message = payload.new as unknown as RealtimeMessageRow
             if (!active || message.sender_id === currentUserId || message.deleted_at) return
 
+            if (
+              message.dm_thread_id &&
+              !(
+                document.visibilityState === 'visible' &&
+                document.hasFocus() &&
+                activeDmThreadId() === message.dm_thread_id
+              )
+            ) {
+              void syncCurrentDmUnread()
+            }
+
             const roomType: NotificationRoomType | null = message.dm_thread_id
               ? 'dm'
               : message.channel_id
@@ -111,7 +148,6 @@ export function BrowserMessageNotifications() {
             const roomId = message.dm_thread_id ?? message.channel_id
             if (!roomType || !roomId || !isRoomBrowserNotificationEnabled(roomType, roomId, preferences)) return
             if (document.visibilityState === 'visible' && document.hasFocus()) return
-            attention.alert()
             if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
 
             const { data: sender } = await client
@@ -132,6 +168,16 @@ export function BrowserMessageNotifications() {
               notification.close()
             }
           },
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'read_states',
+            filter: `user_id=eq.${currentUserId}`,
+          },
+          () => void syncCurrentDmUnread(),
         )
 
       if (isAdmin) {
@@ -155,6 +201,7 @@ export function BrowserMessageNotifications() {
       if (!active) return
       if (!session?.access_token) {
         stopRealtime()
+        attention.setUnreadCount(0)
         return
       }
       void startRealtime(session.access_token, session.user.id, session.user.app_metadata?.role === 'admin')
@@ -164,8 +211,8 @@ export function BrowserMessageNotifications() {
       active = false
       authListener.subscription.unsubscribe()
       window.removeEventListener(NOTIFICATION_PREFERENCE_CHANGED_EVENT, onPreferenceChanged)
-      document.removeEventListener('visibilitychange', clearAttentionWhenVisible)
-      window.removeEventListener('focus', clearAttentionWhenVisible)
+      document.removeEventListener('visibilitychange', syncAttentionWhenVisible)
+      window.removeEventListener('focus', syncAttentionWhenVisible)
       attention.dispose()
       stopRealtime()
     }
