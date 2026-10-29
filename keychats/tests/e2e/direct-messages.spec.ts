@@ -71,9 +71,9 @@ async function createFixture(): Promise<Fixture> {
 
   return {
     admin,
-    first: await createUser('dm_a', `DM Alpha ${suffix}`),
-    second: await createUser('dm_b', `DM Beta ${suffix}`),
-    outsider: await createUser('dm_c', `DM Admin ${suffix}`, 'admin'),
+    first: await createUser('dm_a', 'DM Alpha'),
+    second: await createUser('dm_b', 'DM Beta'),
+    outsider: await createUser('dm_c', 'DM Admin', 'admin'),
   }
 }
 
