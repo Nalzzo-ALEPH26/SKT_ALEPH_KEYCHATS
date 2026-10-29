@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Keychats">
+  <defs>
+    <linearGradient id="keychats-blue" x1="18" y1="110" x2="112" y2="16" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1738ff"/>
+      <stop offset="0.55" stop-color="#2e7dff"/>
+      <stop offset="1" stop-color="#4cc9ee"/>
+    </linearGradient>
+  </defs>
+  <rect x="5" y="5" width="118" height="118" rx="29" fill="url(#keychats-blue)"/>
+  <path fill="#fff" d="M64 32c-24.9 0-43 15.1-43 36.2 0 10.4 4.5 19.4 12.3 25.9l-4.8 12.3c-1.2 3.2 2 6.1 5 4.5l16.2-8.1c4.5 1.1 9.2 1.7 14.3 1.7 24.9 0 43-15.1 43-36.3S88.9 32 64 32Z"/>
+  <circle cx="64" cy="61" r="9.7" fill="url(#keychats-blue)"/>
+  <path d="M58.2 67.2h11.6l5.5 20.1c.5 1.9-.9 3.7-2.9 3.7H55.6c-2 0-3.4-1.9-2.9-3.7l5.5-20.1Z" fill="url(#keychats-blue)"/>
+</svg>
