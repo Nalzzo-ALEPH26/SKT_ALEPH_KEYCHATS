@@ -37,9 +37,7 @@ export function createTabAttentionController(document: Document): TabAttentionCo
       return
     }
 
-    document.title = showAlertState
-      ? `${unreadCount} 새 메시지 · KEYCHATS`
-      : originalTitle
+    document.title = `${unreadCount} 새 메시지 · KEYCHATS`
     icon!.href = showAlertState ? RED_ALERT_FAVICON : BLACK_ALERT_FAVICON
   }
 
