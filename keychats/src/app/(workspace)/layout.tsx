@@ -5,6 +5,7 @@ import { AppShell } from '@/components/app-shell'
 import { loadAdminPendingCount } from '@/lib/admin/pending-notifications'
 import { AuthGuardError, requireActiveUser } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
+import { loadCommunityUnreadCounts } from '@/lib/community/unread'
 import { buildDirectSidebarData } from '@/lib/dms/presentation'
 import { loadUnreadCounts } from '@/lib/messages/state-supabase'
 import { normalizeTheme, type KeychatsTheme } from '@/lib/settings/theme'
@@ -37,6 +38,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
     { data: activeProfiles, error: profilesError },
     { data: communities, error: communitiesError },
     { data: communityPins, error: communityPinsError },
+    communityUnread,
     unread,
     adminPendingCount,
   ] = await Promise.all([
@@ -48,6 +50,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
     client.from('profiles').select('user_id,display_name,username').eq('status', 'active').order('display_name'),
     client.from('communities').select('id,name,created_at,is_notice').order('created_at', { ascending: true }),
     client.from('community_pins').select('community_id,pinned_at').order('pinned_at', { ascending: false }),
+    loadCommunityUnreadCounts(client),
     loadUnreadCounts(client),
     adminPendingCountPromise,
   ])
@@ -114,6 +117,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
         name: community.name as string,
         pinnedAt: communityPinValue.get(community.id as string) ?? null,
         isNotice: Boolean(community.is_notice),
+        unreadCount: communityUnread[community.id as string] ?? 0,
       }))}
       theme={theme}
       isAdmin={isAdmin}

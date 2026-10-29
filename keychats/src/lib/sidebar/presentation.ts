@@ -3,6 +3,7 @@ export type SidebarCommunity = {
   name: string
   pinnedAt?: string | null
   isNotice?: boolean
+  unreadCount?: number
 }
 
 function pinnedTimestamp(value: string | null | undefined) {

@@ -10,6 +10,7 @@ type MessageListProps = {
   currentUserId: string
   isAdmin: boolean
   onReply?: (messageId: number) => void
+  onJumpToMessage?: (messageId: number) => void
   onEdit?: (messageId: number) => void
   onDelete?: (messageId: number) => void
   onToggleReaction?: (messageId: number, emoji: string) => void
@@ -23,6 +24,7 @@ export function MessageList({
   currentUserId,
   isAdmin,
   onReply,
+  onJumpToMessage,
   onEdit,
   onDelete,
   onToggleReaction,
@@ -94,6 +96,7 @@ export function MessageList({
             continuesPrevious={continuesPrevious}
             continuesNext={continuesNext}
             onReply={onReply}
+            onJumpToMessage={onJumpToMessage}
             onEdit={onEdit}
             onDelete={onDelete}
             onToggleReaction={onToggleReaction}

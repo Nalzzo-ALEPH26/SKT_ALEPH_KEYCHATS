@@ -36,7 +36,7 @@ export default async function SettingsPage() {
             name="displayName"
             defaultValue={profile.display_name}
             required
-            maxLength={40}
+            maxLength={15}
             aria-label="닉네임"
             className="min-w-0 flex-1 rounded-xl border border-current/15 bg-transparent px-3 py-2 text-sm outline-none"
           />

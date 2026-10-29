@@ -67,7 +67,7 @@ export function validateInviteRegistrationInput(input: InviteRegistrationInput) 
   const loginId = normalizeLoginId(input.loginId)
   const displayName = input.displayName.trim()
 
-  if (displayName.length < 1 || displayName.length > 60) {
+  if (displayName.length < 1 || displayName.length > 15) {
     throw new Error('DISPLAY_NAME_INVALID')
   }
 

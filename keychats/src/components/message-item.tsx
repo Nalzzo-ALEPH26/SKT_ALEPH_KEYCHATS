@@ -40,6 +40,7 @@ type MessageItemProps = {
   continuesPrevious?: boolean
   continuesNext?: boolean
   onReply?: (messageId: number) => void
+  onJumpToMessage?: (messageId: number) => void
   onEdit?: (messageId: number) => void
   onDelete?: (messageId: number) => void
   onToggleReaction?: (messageId: number, emoji: string) => void
@@ -77,6 +78,7 @@ export function MessageItem({
   continuesPrevious = false,
   continuesNext = false,
   onReply,
+  onJumpToMessage,
   onEdit,
   onDelete,
   onToggleReaction,
@@ -133,10 +135,16 @@ export function MessageItem({
         ) : null}
 
         {message.replyTo ? (
-          <blockquote className={`${showSenderInfo ? 'mt-2' : 'mt-1'} w-full border-l-2 border-zinc-300 pl-3 text-left text-xs text-zinc-500 dark:border-zinc-700`}>
+          <button
+            type="button"
+            data-jump-to-message={message.replyTo.id}
+            onClick={() => onJumpToMessage?.(message.replyTo!.id)}
+            className={`${showSenderInfo ? 'mt-2' : 'mt-1'} w-full border-l-2 border-zinc-300 pl-3 text-left text-xs text-zinc-500 transition hover:text-zinc-800 dark:border-zinc-700 dark:hover:text-zinc-200`}
+            aria-label={`${message.replyTo.displayName}의 원본 메시지로 이동`}
+          >
             <span className="font-medium">{message.replyTo.displayName}</span>
             <p className="mt-0.5 truncate">{message.replyTo.deletedAt ? '삭제된 메시지입니다.' : message.replyTo.body}</p>
-          </blockquote>
+          </button>
         ) : null}
 
         <div className={`${showSenderInfo ? 'mt-1' : 'mt-0'} max-w-full whitespace-pre-wrap break-words text-left text-sm leading-6 ${isOwn ? `${ownBubbleShape} bg-zinc-950 px-3 py-2 text-white dark:bg-white dark:text-zinc-950` : ''}`}>

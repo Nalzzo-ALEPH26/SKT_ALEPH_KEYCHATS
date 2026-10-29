@@ -29,7 +29,7 @@ export function SignupRequestForm() {
 
       <form action={formAction} className="mt-8 space-y-5">
         <label className="block"><span className="mb-2 block text-sm font-medium text-zinc-950">아이디</span><input name="loginId" required minLength={3} maxLength={24} autoCapitalize="none" spellCheck={false} className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-950 outline-none focus:border-black/35" /></label>
-        <label className="block"><span className="mb-2 block text-sm font-medium text-zinc-950">표시 이름</span><input name="displayName" required maxLength={60} className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-950 outline-none focus:border-black/35" /></label>
+        <label className="block"><span className="mb-2 block text-sm font-medium text-zinc-950">표시 이름</span><input name="displayName" required maxLength={15} className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-950 outline-none focus:border-black/35" /></label>
         <label className="block"><span className="mb-2 block text-sm font-medium text-zinc-950">비밀번호</span><input name="password" type="password" required minLength={8} maxLength={72} autoComplete="new-password" className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-950 outline-none focus:border-black/35" /></label>
         {state.error ? <p role="alert" className="text-sm text-red-600">{state.error}</p> : null}
         <button type="submit" disabled={pending} className="w-full rounded-xl bg-zinc-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{pending ? '요청 중…' : '가입 요청 보내기'}</button>

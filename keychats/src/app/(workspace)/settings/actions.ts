@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 
 export async function updateDisplayNameAction(formData: FormData) {
   const displayName = String(formData.get('displayName') ?? '').trim()
-  if (displayName.length < 1 || displayName.length > 40) throw new Error('DISPLAY_NAME_INVALID')
+  if (displayName.length < 1 || displayName.length > 15) throw new Error('DISPLAY_NAME_INVALID')
 
   const client = await createClient()
   const { claims } = await requireActiveUser(createAuthGuardAccess(client))

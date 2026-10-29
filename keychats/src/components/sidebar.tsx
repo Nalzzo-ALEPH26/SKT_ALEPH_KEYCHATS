@@ -604,13 +604,16 @@ export function Sidebar({
               const active = isSidebarHrefActive(pathname, href)
               return (
                 <Link key={community.id} href={href} data-sidebar-active={active ? 'true' : 'false'} className={linkClass(href)}>
-                  <span className="flex items-center gap-2">
-                    <span className="min-w-0 truncate">{community.name}</span>
-                    {community.pinnedAt ? (
-                      <span data-community-pinned className={`shrink-0 text-[10px] ${active ? 'text-[#fff0c9]/80' : 'text-[#fff0c9]/55'}`}>
-                        고정
-                      </span>
-                    ) : null}
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="min-w-0 truncate">{community.name}</span>
+                      {community.pinnedAt ? (
+                        <span data-community-pinned className={`shrink-0 text-[10px] ${active ? 'text-[#fff0c9]/80' : 'text-[#fff0c9]/55'}`}>
+                          고정
+                        </span>
+                      ) : null}
+                    </span>
+                    <UnreadBadge count={community.unreadCount ?? 0} />
                   </span>
                 </Link>
               )

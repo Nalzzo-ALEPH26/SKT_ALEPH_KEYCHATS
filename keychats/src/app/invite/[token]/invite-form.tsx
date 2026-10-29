@@ -35,7 +35,7 @@ export function InviteForm({ token }: { token: string }) {
           type="text"
           autoComplete="name"
           required
-          maxLength={60}
+          maxLength={15}
           className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-black/35"
         />
       </label>

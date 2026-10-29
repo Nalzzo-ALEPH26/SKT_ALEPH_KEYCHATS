@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 
 import { getAdminPendingCountAction } from '@/app/(workspace)/admin/admin-actions'
+import { mapCommunityUnreadRows, type CommunityUnreadCountRow } from '@/lib/community/unread'
 import { Sidebar } from '@/components/sidebar'
 import { shouldRefreshForUnknownDmThread } from '@/lib/dms/sidebar-refresh'
 import type { RealtimeMessageRow } from '@/lib/messages/realtime'
@@ -28,6 +29,9 @@ type DirectItem = {
 type CommunityItem = {
   id: string
   name: string
+  unreadCount?: number
+  pinnedAt?: string | null
+  isNotice?: boolean
 }
 
 type AppShellProps = {
@@ -57,11 +61,13 @@ type AppShellProps = {
 type UnreadCounts = {
   channels: Record<string, number>
   directMessages: Record<string, number>
+  communities: Record<string, number>
 }
 
 type ActiveRoom =
   | { kind: 'channel'; id: string }
   | { kind: 'dm'; id: string }
+  | { kind: 'community'; id: string }
   | null
 
 type UnreadCountRow = {
@@ -77,16 +83,22 @@ function activeRoomFromPathname(pathname: string): ActiveRoom {
   const dmMatch = pathname.match(/\/dm\/([^/]+)\/?$/)
   if (dmMatch?.[1]) return { kind: 'dm', id: dmMatch[1] }
 
+  const communityMatch = pathname.match(/\/community\/([^/]+)\/?$/)
+  if (communityMatch?.[1]) return { kind: 'community', id: communityMatch[1] }
+
   return null
 }
 
-function initialUnreadCounts(channels: ChannelItem[], directMessages: DirectItem[]): UnreadCounts {
+function initialUnreadCounts(channels: ChannelItem[], directMessages: DirectItem[], communities: CommunityItem[]): UnreadCounts {
   return {
     channels: Object.fromEntries(
       channels.filter((channel) => channel.unreadCount > 0).map((channel) => [channel.id, channel.unreadCount]),
     ),
     directMessages: Object.fromEntries(
       directMessages.filter((direct) => direct.unreadCount > 0).map((direct) => [direct.id, direct.unreadCount]),
+    ),
+    communities: Object.fromEntries(
+      communities.filter((community) => (community.unreadCount ?? 0) > 0).map((community) => [community.id, community.unreadCount ?? 0]),
     ),
   }
 }
@@ -101,6 +113,13 @@ function clearActiveRoom(counts: UnreadCounts, activeRoom: ActiveRoom): UnreadCo
     return { ...counts, channels }
   }
 
+  if (activeRoom.kind === 'community') {
+    if (!counts.communities[activeRoom.id]) return counts
+    const communities = { ...counts.communities }
+    delete communities[activeRoom.id]
+    return { ...counts, communities }
+  }
+
   if (!counts.directMessages[activeRoom.id]) return counts
   const directMessages = { ...counts.directMessages }
   delete directMessages[activeRoom.id]
@@ -113,7 +132,7 @@ function mapUnreadRows(
   knownDmIds: Set<string>,
   activeRoom: ActiveRoom,
 ): UnreadCounts {
-  const next: UnreadCounts = { channels: {}, directMessages: {} }
+  const next: UnreadCounts = { channels: {}, directMessages: {}, communities: {} }
 
   for (const row of rows) {
     const count = Number(row.unread_count)
@@ -148,13 +167,14 @@ export function AppShell({
   const dark = theme === 'dark'
   const initialActiveRoom = activeRoomFromPathname(pathname)
   const [unread, setUnread] = useState<UnreadCounts>(() =>
-    clearActiveRoom(initialUnreadCounts(channels, directMessages), initialActiveRoom),
+    clearActiveRoom(initialUnreadCounts(channels, directMessages, communities), initialActiveRoom),
   )
   const [unreadRealtimeStatus, setUnreadRealtimeStatus] = useState('connecting')
   const [liveAdminPendingCount, setLiveAdminPendingCount] = useState(adminPendingCount)
   const activeRoomRef = useRef<ActiveRoom>(initialActiveRoom)
   const knownChannelIds = useMemo(() => new Set(channels.map((channel) => channel.id)), [channels])
   const knownDmIds = useMemo(() => new Set(directMessages.map((direct) => direct.id)), [directMessages])
+  const knownCommunityIds = useMemo(() => new Set(communities.map((community) => community.id)), [communities])
 
   useEffect(() => {
     setLiveAdminPendingCount(adminPendingCount)
@@ -181,16 +201,25 @@ export function AppShell({
     const activeRoom = activeRoomFromPathname(pathname)
     activeRoomRef.current = activeRoom
     setUnread((current) => clearActiveRoom(current, activeRoom))
-  }, [pathname])
+
+    if (activeRoom?.kind === 'community' && currentUserId) {
+      const client = createClient()
+      const now = new Date().toISOString()
+      void client.from('community_read_states').upsert(
+        { user_id: currentUserId, community_id: activeRoom.id, last_read_at: now, updated_at: now },
+        { onConflict: 'user_id,community_id' },
+      )
+    }
+  }, [pathname, currentUserId])
 
   useEffect(() => {
     setUnread(
       clearActiveRoom(
-        initialUnreadCounts(channels, directMessages),
+        initialUnreadCounts(channels, directMessages, communities),
         activeRoomRef.current,
       ),
     )
-  }, [channels, directMessages])
+  }, [channels, directMessages, communities])
 
   useEffect(() => {
     if (!currentUserId) {
@@ -203,16 +232,22 @@ export function AppShell({
     let realtimeChannel: ReturnType<typeof client.channel> | null = null
 
     const syncUnread = async () => {
-      const { data, error } = await client.rpc('get_unread_counts')
-      if (!active || error) return
-      setUnread(
-        mapUnreadRows(
-          (data ?? []) as UnreadCountRow[],
-          knownChannelIds,
-          knownDmIds,
-          activeRoomRef.current,
-        ),
+      const [messageResult, communityResult] = await Promise.all([
+        client.rpc('get_unread_counts'),
+        client.rpc('get_community_unread_counts'),
+      ])
+      if (!active || messageResult.error || communityResult.error) return
+      const next = mapUnreadRows(
+        (messageResult.data ?? []) as UnreadCountRow[],
+        knownChannelIds,
+        knownDmIds,
+        activeRoomRef.current,
       )
+      const communityCounts = mapCommunityUnreadRows((communityResult.data ?? []) as CommunityUnreadCountRow[])
+      next.communities = Object.fromEntries(
+        Object.entries(communityCounts).filter(([id]) => knownCommunityIds.has(id)),
+      )
+      setUnread(clearActiveRoom(next, activeRoomRef.current))
     }
 
     const handleInsert = (message: RealtimeMessageRow) => {
@@ -255,6 +290,25 @@ export function AppShell({
       }
     }
 
+    const handleCommunityInsert = (post: { community_id: string; author_id: string }) => {
+      if (!active || post.author_id === currentUserId || !knownCommunityIds.has(post.community_id)) return
+      const activeRoom = activeRoomRef.current
+      if (activeRoom?.kind === 'community' && activeRoom.id === post.community_id) {
+        if (currentUserId) {
+          const now = new Date().toISOString()
+          void client.from('community_read_states').upsert(
+            { user_id: currentUserId, community_id: post.community_id, last_read_at: now, updated_at: now },
+            { onConflict: 'user_id,community_id' },
+          )
+        }
+        return
+      }
+      setUnread((current) => ({
+        ...current,
+        communities: { ...current.communities, [post.community_id]: (current.communities[post.community_id] ?? 0) + 1 },
+      }))
+    }
+
     void (async () => {
       const {
         data: { session },
@@ -287,6 +341,11 @@ export function AppShell({
           { event: 'INSERT', schema: 'public', table: 'messages' },
           (payload) => handleInsert(payload.new as unknown as RealtimeMessageRow),
         )
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'community_posts' },
+          (payload) => handleCommunityInsert(payload.new as { community_id: string; author_id: string }),
+        )
         .subscribe((status) => {
           if (!active || status === 'SUBSCRIBED') return
           setUnreadRealtimeStatus(status.toLowerCase())
@@ -306,7 +365,7 @@ export function AppShell({
       document.removeEventListener('visibilitychange', syncOnVisibility)
       if (realtimeChannel) void client.removeChannel(realtimeChannel)
     }
-  }, [currentUserId, knownChannelIds, knownDmIds, router])
+  }, [currentUserId, knownChannelIds, knownDmIds, knownCommunityIds, router])
 
   const liveChannels = channels.map((channel) => ({
     ...channel,
@@ -315,6 +374,10 @@ export function AppShell({
   const liveDirectMessages = directMessages.map((direct) => ({
     ...direct,
     unreadCount: unread.directMessages[direct.id] ?? 0,
+  }))
+  const liveCommunities = communities.map((community) => ({
+    ...community,
+    unreadCount: unread.communities[community.id] ?? 0,
   }))
 
   const sidebar = (
@@ -325,7 +388,7 @@ export function AppShell({
       channels={liveChannels}
       directMessages={liveDirectMessages}
       directCandidates={directCandidates}
-      communities={communities}
+      communities={liveCommunities}
       theme={theme}
       isAdmin={isAdmin}
       adminPendingCount={liveAdminPendingCount}

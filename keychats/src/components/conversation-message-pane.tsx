@@ -467,6 +467,46 @@ export function ConversationMessagePane({
     }
   }
 
+  const scrollToMessage = (messageId: number) => {
+    const element = document.querySelector<HTMLElement>(`[data-message-id="${messageId}"]`)
+    if (!element) return false
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    return true
+  }
+
+  const handleJumpToMessage = async (messageId: number) => {
+    if (scrollToMessage(messageId) || busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      let history = messagesRef.current
+      let canLoadMore = hasMore
+      const loadedIds: number[] = []
+      while (canLoadMore && !history.some((message) => message.id === messageId)) {
+        const beforeId = history[0]?.id
+        if (!beforeId || messageId >= beforeId) break
+        const older = target.kind === 'channel'
+          ? await loadOlderChannelMessagesAction({ channelId: target.id, beforeId })
+          : await loadOlderDmMessagesAction({ dmThreadId: target.id, beforeId })
+        const rows = older.map(messageRecordToRealtimeRow)
+        if (rows.length === 0) { canLoadMore = false; break }
+        loadedIds.push(...rows.map((row) => row.id))
+        history = mergeMessageHistory(history, rows)
+        messagesRef.current = history
+        canLoadMore = older.length === 50
+      }
+      setMessages(history)
+      setHasMore(canLoadMore)
+      void refreshMessageState(loadedIds).catch(() => undefined)
+      void refreshAttachments(loadedIds).catch(() => undefined)
+      window.setTimeout(() => scrollToMessage(messageId), 0)
+    } catch {
+      setError('원본 메시지를 불러오지 못했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const handleLoadOlder = async () => {
     const beforeId = messagesRef.current[0]?.id
     if (!beforeId || busy) return
@@ -511,6 +551,7 @@ export function ConversationMessagePane({
           currentUserId={currentUserId}
           isAdmin={target.kind === 'channel' && isAdmin}
           onReply={(messageId) => { setReplyToId(messageId); setEditingMessageId(null) }}
+          onJumpToMessage={handleJumpToMessage}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onToggleReaction={handleToggleReaction}
