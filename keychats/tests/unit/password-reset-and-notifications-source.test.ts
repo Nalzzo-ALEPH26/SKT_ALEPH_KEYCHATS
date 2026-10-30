@@ -49,7 +49,7 @@ describe('password reset, DM read receipts and browser notifications', () => {
     expect(listener).not.toContain('attention.clear()')
   })
 
-  it('replaces the default favicon during attention and recreates it after unread clears', () => {
+  it('reuses the default favicon node during attention and restores its original href after unread clears', () => {
     const layout = source('../../src/app/layout.tsx')
     const attention = source('../../src/lib/notifications/tab-attention.ts')
     const icon = source('../../public/keychats-tab-icon.svg')
@@ -57,12 +57,15 @@ describe('password reset, DM read receipts and browser notifications', () => {
     expect(layout).toContain("icon: '/chats/keychats-tab-icon.svg'")
     expect(icon).toContain('linearGradient id="keychats-blue"')
     expect(icon).toContain('aria-label="Keychats"')
-    expect(attention).toContain("const originalIcon = document.querySelector<HTMLLinkElement>('link[rel~=\"icon\"]')")
+    expect(attention).toContain("const existingIcons = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~=\"icon\"]'))")
+    expect(attention).toContain("const favicon = existingIcons[0] ?? document.createElement('link')")
     expect(attention).toContain('const originalIconHref =')
-    expect(attention).toContain("querySelectorAll<HTMLLinkElement>('link[rel~=\"icon\"]')")
-    expect(attention).toContain("nextIcon.setAttribute('data-keychats-alert-icon', 'true')")
-    expect(attention).toContain('replaceFavicon(originalIconHref, originalIconType, false)')
+    expect(attention).toContain('existingIcons.slice(1).forEach((icon) => icon.remove())')
+    expect(attention).toContain("favicon.setAttribute('data-keychats-alert-icon', 'true')")
+    expect(attention).toContain("favicon.removeAttribute('data-keychats-alert-icon')")
+    expect(attention).toContain('setFavicon(originalIconHref, originalIconType, false)')
     expect(attention).toContain('RED_ALERT_FAVICON')
     expect(attention).toContain('BLACK_ALERT_FAVICON')
+    expect(attention).not.toContain('document.head.appendChild(nextIcon)')
   })
 })
