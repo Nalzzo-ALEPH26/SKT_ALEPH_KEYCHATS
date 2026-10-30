@@ -20,26 +20,31 @@ export function createTabAttentionController(document: Document): TabAttentionCo
   let intervalId: ReturnType<typeof setInterval> | null = null
   let showAlertState = true
   const originalTitle = document.title
-  const originalIcon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')
+  const existingIcons = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'))
+  const favicon = existingIcons[0] ?? document.createElement('link')
   const originalIconHref =
-    originalIcon?.getAttribute('href') || originalIcon?.href || '/chats/keychats-tab-icon.svg'
-  const originalIconType = originalIcon?.type || 'image/svg+xml'
+    favicon.getAttribute('href') || favicon.href || '/chats/keychats-tab-icon.svg'
+  const originalIconType = favicon.type || 'image/svg+xml'
 
-  const replaceFavicon = (href: string, type: string, isAlert: boolean) => {
-    document
-      .querySelectorAll<HTMLLinkElement>('link[rel~="icon"]')
-      .forEach((icon) => icon.remove())
+  existingIcons.slice(1).forEach((icon) => icon.remove())
+  if (!favicon.isConnected) {
+    favicon.rel = 'icon'
+    document.head.appendChild(favicon)
+  }
 
-    const nextIcon = document.createElement('link')
-    nextIcon.rel = 'icon'
-    nextIcon.type = type
-    nextIcon.href = href
-    if (isAlert) nextIcon.setAttribute('data-keychats-alert-icon', 'true')
-    document.head.appendChild(nextIcon)
+  const setFavicon = (href: string, type: string, isAlert: boolean) => {
+    favicon.rel = 'icon'
+    favicon.type = type
+    favicon.href = href
+    if (isAlert) {
+      favicon.setAttribute('data-keychats-alert-icon', 'true')
+    } else {
+      favicon.removeAttribute('data-keychats-alert-icon')
+    }
   }
 
   const restoreDefaultFavicon = () => {
-    replaceFavicon(originalIconHref, originalIconType, false)
+    setFavicon(originalIconHref, originalIconType, false)
   }
 
   const render = () => {
@@ -50,7 +55,7 @@ export function createTabAttentionController(document: Document): TabAttentionCo
     }
 
     document.title = `${unreadCount} 새 메시지 · KEYCHATS`
-    replaceFavicon(
+    setFavicon(
       showAlertState ? RED_ALERT_FAVICON : BLACK_ALERT_FAVICON,
       'image/svg+xml',
       true,
