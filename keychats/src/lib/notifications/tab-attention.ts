@@ -5,8 +5,6 @@ export type TabAttentionController = {
   dispose: () => void
 }
 
-const ALERT_ICON_SELECTOR = 'link[data-keychats-alert-icon="true"]'
-
 const RED_ALERT_FAVICON = `data:image/svg+xml,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <circle cx="32" cy="32" r="30" fill="#ff2d20"/>
@@ -21,37 +19,42 @@ export function createTabAttentionController(document: Document): TabAttentionCo
   let unreadCount = 0
   let intervalId: ReturnType<typeof setInterval> | null = null
   let showAlertState = true
-  let alertIcon: HTMLLinkElement | null = null
   const originalTitle = document.title
+  const originalIcon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]')
+  const originalIconHref =
+    originalIcon?.getAttribute('href') || originalIcon?.href || '/chats/keychats-tab-icon.svg'
+  const originalIconType = originalIcon?.type || 'image/svg+xml'
 
-  document.querySelector<HTMLLinkElement>(ALERT_ICON_SELECTOR)?.remove()
-
-  const removeAlertIcon = () => {
-    alertIcon?.remove()
-    alertIcon = null
-  }
-
-  const replaceAlertIcon = (href: string) => {
-    removeAlertIcon()
+  const replaceFavicon = (href: string, type: string, isAlert: boolean) => {
+    document
+      .querySelectorAll<HTMLLinkElement>('link[rel~="icon"]')
+      .forEach((icon) => icon.remove())
 
     const nextIcon = document.createElement('link')
     nextIcon.rel = 'icon'
-    nextIcon.type = 'image/svg+xml'
+    nextIcon.type = type
     nextIcon.href = href
-    nextIcon.setAttribute('data-keychats-alert-icon', 'true')
+    if (isAlert) nextIcon.setAttribute('data-keychats-alert-icon', 'true')
     document.head.appendChild(nextIcon)
-    alertIcon = nextIcon
+  }
+
+  const restoreDefaultFavicon = () => {
+    replaceFavicon(originalIconHref, originalIconType, false)
   }
 
   const render = () => {
     if (unreadCount <= 0) {
       document.title = originalTitle
-      removeAlertIcon()
+      restoreDefaultFavicon()
       return
     }
 
     document.title = `${unreadCount} 새 메시지 · KEYCHATS`
-    replaceAlertIcon(showAlertState ? RED_ALERT_FAVICON : BLACK_ALERT_FAVICON)
+    replaceFavicon(
+      showAlertState ? RED_ALERT_FAVICON : BLACK_ALERT_FAVICON,
+      'image/svg+xml',
+      true,
+    )
   }
 
   const clear = () => {
@@ -62,7 +65,7 @@ export function createTabAttentionController(document: Document): TabAttentionCo
       intervalId = null
     }
     document.title = originalTitle
-    removeAlertIcon()
+    restoreDefaultFavicon()
   }
 
   const setUnreadCount = (count: number) => {

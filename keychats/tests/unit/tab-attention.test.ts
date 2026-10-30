@@ -52,7 +52,16 @@ function createFakeDocument() {
       if (selector === 'link[data-keychats-alert-icon="true"]') {
         return links.find((link) => link.getAttribute('data-keychats-alert-icon') === 'true') ?? null
       }
+      if (selector === 'link[rel~="icon"]') {
+        return links.find((link) => link.rel.split(/\s+/).includes('icon')) ?? null
+      }
       return null
+    },
+    querySelectorAll: (selector: string) => {
+      if (selector === 'link[rel~="icon"]') {
+        return links.filter((link) => link.rel.split(/\s+/).includes('icon'))
+      }
+      return []
     },
     createElement: () => createLink(),
     head: {
@@ -78,7 +87,7 @@ afterEach(() => {
 })
 
 describe('DM favicon attention', () => {
-  it('replaces a dedicated alert icon while keeping the default favicon untouched, then removes it at zero', () => {
+  it('keeps exactly one favicon active while blinking, then recreates the default icon at zero', () => {
     vi.useFakeTimers()
     const { document, staticIcon, getAlertIcon, getIcons } = createFakeDocument()
     const controller = createTabAttentionController(document)
@@ -88,8 +97,8 @@ describe('DM favicon attention', () => {
     const redAlertIcon = getAlertIcon()
     expect(redAlertIcon?.href).toContain('ff2d20')
     expect(redAlertIcon?.type).toBe('image/svg+xml')
-    expect(staticIcon.href).toBe('/chats/keychats-tab-icon.svg')
-    expect(getIcons().at(-1)).toBe(redAlertIcon)
+    expect(staticIcon.isConnected).toBe(false)
+    expect(getIcons()).toEqual([redAlertIcon])
 
     vi.advanceTimersByTime(900)
     expect(document.title).toBe('2 새 메시지 · KEYCHATS')
@@ -97,20 +106,24 @@ describe('DM favicon attention', () => {
     expect(blackAlertIcon?.href).toContain('000000')
     expect(blackAlertIcon).not.toBe(redAlertIcon)
     expect(redAlertIcon?.isConnected).toBe(false)
-    expect(staticIcon.href).toBe('/chats/keychats-tab-icon.svg')
+    expect(getIcons()).toEqual([blackAlertIcon])
 
     vi.advanceTimersByTime(900)
     expect(document.title).toBe('2 새 메시지 · KEYCHATS')
     const nextRedAlertIcon = getAlertIcon()
     expect(nextRedAlertIcon?.href).toContain('ff2d20')
     expect(nextRedAlertIcon).not.toBe(blackAlertIcon)
+    expect(getIcons()).toEqual([nextRedAlertIcon])
 
     controller.setUnreadCount(0)
     expect(document.title).toBe('KEYCHATS')
     expect(getAlertIcon()).toBeNull()
-    expect(staticIcon.href).toBe('/chats/keychats-tab-icon.svg')
-    expect(staticIcon.isConnected).toBe(true)
-    expect(getIcons()).toEqual([staticIcon])
+    const restoredIcon = getIcons()[0]
+    expect(restoredIcon?.href).toBe('/chats/keychats-tab-icon.svg')
+    expect(restoredIcon?.type).toBe('image/svg+xml')
+    expect(restoredIcon).not.toBe(staticIcon)
+    expect(restoredIcon?.isConnected).toBe(true)
+    expect(getIcons()).toHaveLength(1)
 
     controller.dispose()
   })

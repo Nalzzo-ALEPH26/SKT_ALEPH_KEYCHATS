@@ -146,23 +146,31 @@ test('keeps one canonical 1:1 DM private while syncing messages and tab attentio
 
     await expect(secondPage).toHaveTitle('1 새 메시지 · KEYCHATS', { timeout: 10_000 })
 
-    const staticIcon = secondPage.locator('link[rel~="icon"]:not([data-keychats-alert-icon])').first()
+    const favicon = secondPage.locator('link[rel~="icon"]')
+    const staticIcon = secondPage.locator('link[rel~="icon"]:not([data-keychats-alert-icon])')
     const alertIcon = secondPage.locator('link[data-keychats-alert-icon="true"]')
-    await expect(staticIcon).toHaveAttribute('href', '/chats/keychats-tab-icon.svg')
+    await expect(favicon).toHaveCount(1)
+    await expect(staticIcon).toHaveCount(0)
     await expect(alertIcon).toHaveCount(1)
 
     const firstAlertHref = await alertIcon.getAttribute('href')
     expect(firstAlertHref).toMatch(/^data:image\/svg\+xml/)
     expect(firstAlertHref).toMatch(/(?:ff2d20|000000)/)
     await expect
-      .poll(() => alertIcon.getAttribute('href'), { timeout: 4_000 })
+      .poll(
+        () => secondPage.locator('link[data-keychats-alert-icon="true"]').getAttribute('href'),
+        { timeout: 4_000 },
+      )
       .not.toBe(firstAlertHref)
-    await expect(staticIcon).toHaveAttribute('href', '/chats/keychats-tab-icon.svg')
+    await expect(favicon).toHaveCount(1)
+    await expect(staticIcon).toHaveCount(0)
 
     await secondPage.goto(threadUrl)
     await expect(secondPage.getByText(alertBody, { exact: true })).toBeVisible({ timeout: 10_000 })
     await expect(secondPage).toHaveTitle('Keychats', { timeout: 10_000 })
     await expect(alertIcon).toHaveCount(0)
+    await expect(favicon).toHaveCount(1)
+    await expect(staticIcon).toHaveCount(1)
     await expect(staticIcon).toHaveAttribute('href', '/chats/keychats-tab-icon.svg')
 
     const realtimeBody = `private-${Date.now()}`
