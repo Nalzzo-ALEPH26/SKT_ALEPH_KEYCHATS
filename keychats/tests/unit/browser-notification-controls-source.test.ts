@@ -40,7 +40,7 @@ describe('per-room browser notifications and admin alerts', () => {
 })
 
 describe('DM unread tab attention', () => {
-  it('alternates a large red and black alert favicon while preserving the default icon until unread reaches zero', () => {
+  it('alternates a single red and black favicon while DM unread remains, then restores the default icon', () => {
     const listener = source('../../src/components/browser-message-notifications.tsx')
     const attention = source('../../src/lib/notifications/tab-attention.ts')
 
@@ -52,7 +52,8 @@ describe('DM unread tab attention', () => {
     expect(listener).toContain("document.addEventListener('visibilitychange'")
     expect(listener).not.toContain('attention.alert()')
     expect(attention).toContain('document.title')
-    expect(attention).toContain("const ALERT_ICON_SELECTOR = 'link[data-keychats-alert-icon=\"true\"]'")
+    expect(attention).toContain("querySelectorAll<HTMLLinkElement>('link[rel~=\"icon\"]')")
+    expect(attention).toContain('.forEach((icon) => icon.remove())')
     expect(attention).toContain("nextIcon.setAttribute('data-keychats-alert-icon', 'true')")
     expect(attention).toContain('document.head.appendChild(nextIcon)')
     expect(attention).toContain('<circle cx="32" cy="32" r="30" fill="#ff2d20"/>')
@@ -63,6 +64,8 @@ describe('DM unread tab attention', () => {
     expect(attention).toContain('setInterval')
     expect(attention).toContain('const setUnreadCount = (count: number) =>')
     expect(attention).toContain('const clear = () =>')
-    expect(attention).toContain('removeAlertIcon()')
+    expect(attention).toContain('const restoreDefaultFavicon = () =>')
+    expect(attention).toContain('replaceFavicon(originalIconHref, originalIconType, false)')
+    expect(attention).not.toContain('removeAlertIcon()')
   })
 })
