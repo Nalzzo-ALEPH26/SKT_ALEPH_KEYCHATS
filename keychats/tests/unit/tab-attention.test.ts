@@ -9,6 +9,7 @@ type FakeLink = {
   isConnected: boolean
   attributes: Map<string, string>
   setAttribute: (name: string, value: string) => void
+  removeAttribute: (name: string) => void
   getAttribute: (name: string) => string | null
   remove: () => void
 }
@@ -25,6 +26,9 @@ function createFakeDocument() {
       attributes: new Map(),
       setAttribute(name, value) {
         this.attributes.set(name, value)
+      },
+      removeAttribute(name) {
+        this.attributes.delete(name)
       },
       getAttribute(name) {
         return this.attributes.get(name) ?? null
@@ -87,7 +91,7 @@ afterEach(() => {
 })
 
 describe('DM favicon attention', () => {
-  it('keeps exactly one favicon active while blinking, then recreates the default icon at zero', () => {
+  it('keeps one persistent favicon node while blinking and restores it at zero', () => {
     vi.useFakeTimers()
     const { document, staticIcon, getAlertIcon, getIcons } = createFakeDocument()
     const controller = createTabAttentionController(document)
@@ -95,33 +99,34 @@ describe('DM favicon attention', () => {
     controller.setUnreadCount(2)
     expect(document.title).toBe('2 새 메시지 · KEYCHATS')
     const redAlertIcon = getAlertIcon()
+    expect(redAlertIcon).toBe(staticIcon)
     expect(redAlertIcon?.href).toContain('ff2d20')
     expect(redAlertIcon?.type).toBe('image/svg+xml')
-    expect(staticIcon.isConnected).toBe(false)
-    expect(getIcons()).toEqual([redAlertIcon])
+    expect(staticIcon.isConnected).toBe(true)
+    expect(getIcons()).toEqual([staticIcon])
 
     vi.advanceTimersByTime(900)
     expect(document.title).toBe('2 새 메시지 · KEYCHATS')
     const blackAlertIcon = getAlertIcon()
+    expect(blackAlertIcon).toBe(staticIcon)
     expect(blackAlertIcon?.href).toContain('000000')
-    expect(blackAlertIcon).not.toBe(redAlertIcon)
-    expect(redAlertIcon?.isConnected).toBe(false)
-    expect(getIcons()).toEqual([blackAlertIcon])
+    expect(staticIcon.isConnected).toBe(true)
+    expect(getIcons()).toEqual([staticIcon])
 
     vi.advanceTimersByTime(900)
     expect(document.title).toBe('2 새 메시지 · KEYCHATS')
     const nextRedAlertIcon = getAlertIcon()
+    expect(nextRedAlertIcon).toBe(staticIcon)
     expect(nextRedAlertIcon?.href).toContain('ff2d20')
-    expect(nextRedAlertIcon).not.toBe(blackAlertIcon)
-    expect(getIcons()).toEqual([nextRedAlertIcon])
+    expect(getIcons()).toEqual([staticIcon])
 
     controller.setUnreadCount(0)
     expect(document.title).toBe('KEYCHATS')
     expect(getAlertIcon()).toBeNull()
     const restoredIcon = getIcons()[0]
+    expect(restoredIcon).toBe(staticIcon)
     expect(restoredIcon?.href).toBe('/chats/keychats-tab-icon.svg')
     expect(restoredIcon?.type).toBe('image/svg+xml')
-    expect(restoredIcon).not.toBe(staticIcon)
     expect(restoredIcon?.isConnected).toBe(true)
     expect(getIcons()).toHaveLength(1)
 
