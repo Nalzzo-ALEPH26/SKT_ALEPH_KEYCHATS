@@ -13,9 +13,12 @@ describe('방문 수 저장', () => {
     expect(await recordShowcaseVisitAction(id)).toEqual({count:7,counted:true})
     expect(mocks.rpc).toHaveBeenCalledWith('record_showcase_visit',{target_site_id:id})
   })
-  it('중복 클릭의 서버 결과를 그대로 반환한다', async () => {
-    mocks.rpc.mockResolvedValue({data:{count:7,counted:false},error:null})
-    expect(await recordShowcaseVisitAction(id)).toEqual({count:7,counted:false})
+  it('같은 사용자의 연속 방문도 매번 서버에 기록한다', async () => {
+    mocks.rpc.mockResolvedValueOnce({data:{count:7,counted:true},error:null})
+      .mockResolvedValueOnce({data:{count:8,counted:true},error:null})
+    expect(await recordShowcaseVisitAction(id)).toEqual({count:7,counted:true})
+    expect(await recordShowcaseVisitAction(id)).toEqual({count:8,counted:true})
+    expect(mocks.rpc).toHaveBeenCalledTimes(2)
   })
   it('SQL 미적용이나 통신 오류가 링크 동작을 중단하지 않도록 실패 결과를 반환한다', async () => {
     mocks.rpc.mockResolvedValue({data:null,error:{code:'PGRST202'}})

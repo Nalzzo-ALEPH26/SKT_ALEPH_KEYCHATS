@@ -17,24 +17,34 @@ export function ShowcaseBoard({ sites, comments, profiles, currentUserId, isAdmi
   const [error, setError] = useState(''), [dialogError, setDialogError] = useState('')
   const [pending, startTransition] = useTransition()
   const router = useRouter()
-  const visitsInFlight = useRef(new Set<string>())
   const [visitCounts, setVisitCounts] = useState<Record<string, number>>({})
   const [visitStatus, setVisitStatus] = useState('')
   function trackVisit(site: SiteMemo) {
-    if (site.author_id === currentUserId || visitsInFlight.current.has(site.id)) return
-    visitsInFlight.current.add(site.id)
-    // Keep native anchor navigation: opening the external site never waits for counting.
+    // Count every link click, including the author's own visits and repeated visits.
+    // The outbound link opens independently of the counting request.
     void recordShowcaseVisitAction(site.id).then(result => {
       if (result.count === null) { setVisitStatus('사이트 링크를 열었습니다. 방문 수는 집계하지 못했습니다.'); return }
       const confirmedCount = result.count
       setVisitCounts(current => ({ ...current, [site.id]: Math.max(current[site.id] ?? 0, confirmedCount) }))
       setVisitStatus('')
     }).catch(() => { setVisitStatus('사이트 링크를 열었습니다. 방문 수는 집계하지 못했습니다.') })
-      .finally(() => visitsInFlight.current.delete(site.id))
   }
   const profile = (id: string) => profiles.find(p => p.user_id === id)
   const siteComments = (id: string) => comments.filter(c => c.site_id === id)
-  const visible = sites.filter(s => `${s.title} ${profile(s.author_id)?.display_name ?? ''} ${s.tags.join(' ')}`.toLowerCase().includes(search.toLowerCase())).sort((a,b) => sort === 'popular' ? siteComments(b.id).length - siteComments(a.id).length : Date.parse(b.created_at) - Date.parse(a.created_at))
+  const visitCountFor = (site: SiteMemo) => Math.max(visitCounts[site.id] ?? -1, site.visit_count ?? -1)
+  const visible = sites
+    .filter(s => `${s.title} ${profile(s.author_id)?.display_name ?? ''} ${s.tags.join(' ')}`.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      if (sort === 'popular') {
+        const difference = siteComments(b.id).length - siteComments(a.id).length
+        if (difference !== 0) return difference
+      }
+      if (sort === 'visits') {
+        const difference = visitCountFor(b) - visitCountFor(a)
+        if (difference !== 0) return difference
+      }
+      return Date.parse(b.created_at) - Date.parse(a.created_at)
+    })
   function open(site: SiteMemo | null) { setEditing(site); setDialogError(''); dialog.current?.showModal() }
   function mutate(data: FormData, success?: () => void, inDialog = false) {
     startTransition(async () => {
@@ -48,21 +58,21 @@ export function ShowcaseBoard({ sites, comments, profiles, currentUserId, isAdmi
     <p className="text-xs font-semibold tracking-[0.16em] text-zinc-500">COMMUNITY</p>
     <div className="mt-2 flex items-center justify-between gap-4"><h1 className="text-2xl font-semibold">만들었어요 🔨</h1><button type="button" className="sb-primary" onClick={() => open(null)}>등록</button></div>
     <p className="mt-2 text-sm text-zinc-500">직접 만든 사이트를 메모보드에 공유하고 자유롭게 피드백을 주고받는 공간입니다.</p>
-    <div className="mb-6 mt-8 flex flex-wrap items-center justify-between gap-4"><h2 className="text-lg font-semibold">등록된 사이트 메모보드 <span className="sb-count">{visible.length}</span></h2><div className="flex max-w-full gap-2"><input className="sb-input min-w-0" aria-label="사이트 또는 작성자 검색" placeholder="사이트 또는 작성자 검색..." value={search} onChange={e => setSearch(e.target.value)} /><select className="sb-input" aria-label="정렬" value={sort} onChange={e => setSort(e.target.value)}><option value="new">최신순</option><option value="popular">댓글많은순</option></select></div></div>
+    <div className="mb-6 mt-8 flex flex-wrap items-center justify-between gap-4"><h2 className="text-lg font-semibold">등록된 사이트 메모보드 <span className="sb-count">{visible.length}</span></h2><div className="flex max-w-full gap-2"><input className="sb-input min-w-0" aria-label="사이트 또는 작성자 검색" placeholder="사이트 또는 작성자 검색..." value={search} onChange={e => setSearch(e.target.value)} /><select className="sb-input" aria-label="정렬" value={sort} onChange={e => setSort(e.target.value)}><option value="new">최신순</option><option value="popular">댓글많은순</option><option value="visits">조회수많은순</option></select></div></div>
     {error ? <p role="alert" className="mb-4 text-sm text-red-600">{error}</p> : null}
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">{visible.map(site => {
       const author = profile(site.author_id), own = site.author_id === currentUserId
-      const visitCount = Math.max(visitCounts[site.id] ?? -1, site.visit_count ?? -1)
+      const visitCount = visitCountFor(site)
       return <article data-showcase-site={site.id} key={site.id} className="sb-memo" data-color={site.color}>
         <div><div className="sb-meta"><div className="flex min-w-0 items-center gap-2"><span className="sb-avatar">{(author?.display_name ?? '사용자')[0]}</span><div className="min-w-0"><p className="truncate text-xs font-bold">{author?.display_name ?? '사용자'}</p><p className="sb-handle">@{author?.username ?? 'unknown'}</p></div></div><time dateTime={site.created_at}>{date(site.created_at)}</time></div>
         <h3 className="mb-1 break-words text-base font-bold">{site.title}</h3><a href={site.url} target="_blank" rel="noopener noreferrer" className="sb-url" onClick={() => trackVisit(site)} onAuxClick={event => { if (event.button === 1) trackVisit(site) }}>↗ {site.url}</a><p className="mb-4 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-700">{site.description}</p></div>
         <div><div className="mb-4 flex flex-wrap gap-1">{site.tags.map(t => <span className="sb-tag" key={t}>#{t}</span>)}</div>
-        <div className="sb-stats-row"><span className="sb-visit-count" data-showcase-visit-count aria-label={visitCount < 0 ? '방문 수 집계 준비 중' : `방문 ${visitCount}회`} title="사이트 링크 클릭 기준 · 본인 제외 · 같은 사용자 30분 내 중복 제외">방문 {visitCount < 0 ? '—' : `${visitCount.toLocaleString('ko-KR')}회`}</span><div className="sb-controls">{own ? <button type="button" disabled={pending} onClick={() => open(site)}>수정</button> : null}{own || isAdmin ? <button type="button" disabled={pending} onClick={() => { if (!window.confirm('이 메모와 댓글을 삭제할까요?')) return; const data = new FormData(); data.set('operation','delete'); data.set('id',site.id); mutate(data) }}>삭제</button> : null}</div></div>
-        <div className="sb-interactions"><details className="sb-comments"><summary className="sb-footer"><span>댓글 {siteComments(site.id).length}개</span></summary><div className="mt-3 space-y-3">{siteComments(site.id).map(comment => <div key={comment.id} className="sb-comment"><div className="flex justify-between gap-2"><span className="text-xs font-semibold">{profile(comment.author_id)?.display_name ?? '사용자'}</span>{comment.author_id === currentUserId || isAdmin ? <button type="button" className="text-xs text-slate-500" disabled={pending} onClick={() => { const data = new FormData(); data.set('operation','delete-comment'); data.set('id',comment.id); mutate(data) }}>삭제</button> : null}</div><p className="mt-1 whitespace-pre-wrap break-words text-xs">{comment.body}</p><time className="text-[10px] text-slate-500">{date(comment.created_at)}</time></div>)}<form onSubmit={e => { e.preventDefault(); const target = e.currentTarget; mutate(new FormData(target), () => target.reset()) }}><input type="hidden" name="operation" value="comment"/><input type="hidden" name="id" value={site.id}/><textarea name="body" required maxLength={1000} rows={2} className="sb-input w-full" aria-label={`${site.title} 댓글`} placeholder="피드백을 남겨주세요."/><button type="submit" className="sb-primary mt-2" disabled={pending}>댓글 등록</button></form></div></details>
-        <div className="sb-visit-position"><a className="sb-visit" onClick={() => trackVisit(site)} onAuxClick={event => { if (event.button === 1) trackVisit(site) }} href={site.url} target="_blank" rel="noopener noreferrer">방문하기 ↗</a></div></div></div>
+          <div className="sb-stats-row"><span className="sb-visit-count" data-showcase-visit-count aria-label={visitCount < 0 ? '방문 수 집계 준비 중' : `방문 ${visitCount}회`} title="사이트 링크 클릭 기준 · 작성자 포함 · 재방문도 매번 집계">방문 {visitCount < 0 ? '—' : `${visitCount.toLocaleString('ko-KR')}회`}</span><div className="sb-controls">{own ? <button type="button" disabled={pending} onClick={() => open(site)}>수정</button> : null}{own || isAdmin ? <button type="button" disabled={pending} onClick={() => { if (!window.confirm('이 메모와 댓글을 삭제할까요?')) return; const data = new FormData(); data.set('operation','delete'); data.set('id',site.id); mutate(data) }}>삭제</button> : null}</div></div>
+          <div className="sb-interactions"><details className="sb-comments"><summary className="sb-footer"><span>댓글 {siteComments(site.id).length}개</span></summary><div className="mt-3 space-y-3">{siteComments(site.id).map(comment => <div key={comment.id} className="sb-comment"><div className="flex justify-between gap-2"><span className="text-xs font-semibold">{profile(comment.author_id)?.display_name ?? '사용자'}</span>{comment.author_id === currentUserId || isAdmin ? <button type="button" className="text-xs text-slate-500" disabled={pending} onClick={() => { const data = new FormData(); data.set('operation','delete-comment'); data.set('id',comment.id); mutate(data) }}>삭제</button> : null}</div><p className="mt-1 whitespace-pre-wrap break-words text-xs">{comment.body}</p><time className="text-[10px] text-slate-500">{date(comment.created_at)}</time></div>)}<form onSubmit={e => { e.preventDefault(); const target = e.currentTarget; mutate(new FormData(target), () => target.reset()) }}><input type="hidden" name="operation" value="comment"/><input type="hidden" name="id" value={site.id}/><textarea name="body" required maxLength={1000} rows={2} className="sb-input w-full" aria-label={`${site.title} 댓글`} placeholder="피드백을 남겨주세요."/><button type="submit" className="sb-primary mt-2" disabled={pending}>댓글 등록</button></form></div></details>
+          <div className="sb-visit-position"><a className="sb-visit" onClick={() => trackVisit(site)} onAuxClick={event => { if (event.button === 1) trackVisit(site) }} href={site.url} target="_blank" rel="noopener noreferrer">방문하기 ↗</a></div></div></div>
       </article>
     })}</div>
-    {!visible.length ? <p className="rounded-xl border border-dashed border-black/10 p-10 text-center text-sm text-zinc-500 dark:border-white/10">{search ? '검색 결과가 없습니다.' : '아직 등록된 사이트가 없습니다. 첫 프로젝트를 공유해보세요!'}</p> : null}
+    {!visible.length ? <p className="rounded-xl border border-dashed border-black/10 p-10 text-center text-sm text-slate-500 dark:border-white/10">{search ? '검색 결과가 없습니다.' : '아직 등록된 사이트가 없습니다. 첫 프로젝트를 공유해보세요!'}</p> : null}
     <p className="sb-visit-status" role="status" aria-live="polite">{visitStatus}</p>
     <dialog ref={dialog} className="sb-dialog" aria-labelledby="showcase-dialog-title" onClick={e => { if (e.target === dialog.current) { const rect = dialog.current.getBoundingClientRect(); if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) dialog.current.close() } }}>
       <div className="mb-5 flex items-center justify-between gap-4"><h2 id="showcase-dialog-title" className="text-lg font-bold">{editing ? '사이트 수정하기' : '새 사이트 등록하기'}</h2><button type="button" className="sb-close" aria-label="닫기" onClick={() => dialog.current?.close()}>×</button></div>

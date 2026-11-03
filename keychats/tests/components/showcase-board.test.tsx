@@ -11,6 +11,7 @@ describe('사이트 메모보드', () => {
   it('저장된 방문 수를 표시하고 SQL 미적용 상태를 0회로 표시하지 않는다', () => {
     const html = renderToStaticMarkup(createElement(ShowcaseBoard, { sites:[{...site,visit_count:12}], comments:[], profiles:[], currentUserId:'other', isAdmin:false }))
     expect(html).toContain('방문 12회')
+    expect(html).toContain('조회수많은순')
     expect(render('other')).toContain('방문 수 집계 준비 중')
   })
   it('방문자는 수정/삭제 컨트롤을 볼 수 없고 입력 내용은 이스케이프된다', () => { const html = render('other'); expect(html).not.toContain('>수정</button>'); expect(html).not.toContain('>삭제</button>'); expect(html).toContain('&lt;script&gt;'); expect(html).not.toContain('<img onerror'); expect(html).toContain('noopener noreferrer') })
