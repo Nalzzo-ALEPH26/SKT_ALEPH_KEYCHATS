@@ -1,0 +1,15 @@
+begin;
+select plan(11);
+select has_column('public','showcase_sites','details','optional detail column exists');
+select has_column('public','showcase_sites','project_type','project type exists');
+select has_column('public','showcase_sites','thumbnail_path','thumbnail path exists');
+select ok((select not public from storage.buckets where id='showcase-thumbnails'),'thumbnails bucket is private');
+select ok((select file_size_limit=4194304 from storage.buckets where id='showcase-thumbnails'),'thumbnail size limited');
+select ok(has_column_privilege('authenticated','public.showcase_sites','details','UPDATE'),'author can update description');
+select ok(has_column_privilege('authenticated','public.showcase_sites','thumbnail_path','UPDATE'),'author can update thumbnail path');
+select ok(not has_column_privilege('authenticated','public.showcase_sites','author_id','UPDATE'),'author cannot change ownership');
+select ok((select count(*)=3 from pg_policies where schemaname='storage' and tablename='objects' and policyname like 'showcase_thumbnails_%'),'private thumbnail policies exist');
+select ok((select relrowsecurity from pg_class where oid='storage.objects'::regclass),'storage access uses RLS');
+select ok(has_function_privilege('authenticated','public.showcase_comment_counts()','EXECUTE'),'authenticated user can read grouped comment totals');
+select * from finish();
+rollback;

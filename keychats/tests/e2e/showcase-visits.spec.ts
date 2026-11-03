@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { expect, test } from '@playwright/test'
-test('counts every outbound site visit including author and repeated visits', async ({ browser }) => {
+
+test('counts every outbound gallery visit, and internal detail navigation does not count', async ({ browser }) => {
   test.setTimeout(60000)
   const url=process.env.NEXT_PUBLIC_SUPABASE_URL, secret=process.env.SUPABASE_SECRET_KEY, publishable=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   if(!url||!secret||!publishable)throw new Error('E2E_ENV_MISSING:local Supabase credentials required')
@@ -39,11 +40,16 @@ test('counts every outbound site visit including author and repeated visits', as
       const card=page.locator(`[data-showcase-site="${siteId}"]`)
       const before=8+i*2
       await expect(card.locator('[data-showcase-visit-count]')).toHaveText(`방문 ${before}회`)
-      // Do not depend on the external site availability when checking native popup navigation.
+      await card.getByRole('link', { name: /설명 보기/ }).click()
+      await expect(page).toHaveURL(new RegExp(`/chats/showcase/${siteId}`))
+      await expect(page.getByRole('heading', {name:'프로젝트 소개'})).toBeVisible()
+      await expect.poll(async()=>Number((await admin.from('showcase_visit_counts').select('visit_count').eq('site_id',siteId!).single()).data?.visit_count)).toBe(before)
+      await page.goBack()
+      // Do not depend on the external site availability when checking popup navigation.
       await contexts[i].route('https://example.com/**',route=>route.fulfill({contentType:'text/html',body:'Site opened'}))
       for(let click=1;click<=2;click++){
         const popupPromise=page.waitForEvent('popup')
-        await card.getByRole('link',{name:'방문하기 ↗'}).click()
+        await card.getByRole('link',{name:'Visit Counter Test 실제 사이트 방문 (새 탭)'}).click()
         const popup=await popupPromise
         await expect(popup).toHaveURL('https://example.com/')
         await popup.close()
