@@ -1,3 +1,4 @@
+import { parseVisitCount } from '@/lib/community/visit-counts'
 import { requireActiveUser } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
 import { createClient } from '@/lib/supabase/server'
@@ -13,5 +14,11 @@ export default async function ShowcasePage() {
     client.from('profiles').select('user_id,display_name,username'),
   ])
   if (commentError || profileError) throw new Error('메모보드 정보를 불러오지 못했습니다.')
-  return <ShowcaseBoard sites={(sites ?? []) as SiteMemo[]} comments={(comments ?? []) as SiteComment[]} profiles={profiles ?? []} currentUserId={claims.sub} isAdmin={claims.app_metadata?.role === 'admin'} />
+  const ids = (sites ?? []).map(site => site.id as string)
+  const { data: visits, error: visitsError } = ids.length
+    ? await client.from('showcase_visit_counts').select('site_id,visit_count').in('site_id', ids)
+    : { data: [], error: null }
+  const counts = new Map((visits ?? []).map(row => [row.site_id as string, parseVisitCount(row.visit_count)]))
+  const memos = (sites ?? []).map(site => ({ ...site, visit_count: visitsError ? null : counts.get(site.id as string) ?? 0 })) as SiteMemo[]
+  return <ShowcaseBoard sites={memos} comments={(comments ?? []) as SiteComment[]} profiles={profiles ?? []} currentUserId={claims.sub} isAdmin={claims.app_metadata?.role === 'admin'} />
 }
