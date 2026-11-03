@@ -24,7 +24,7 @@ export function RoomThemeFrame({ target, initial, unavailable = false, canChange
     let active = true
     let channel: ReturnType<typeof client.channel> | undefined
     let connected = false
-    let fallbackTimer: ReturnType<typeof setInterval> | null = null
+    let fallbackTimer: number | null = null
     let inFlight = false
     let refreshQueued = false
     let lastResumeAt = 0
