@@ -23,30 +23,106 @@ export function RoomThemeFrame({ target, initial, unavailable = false, canChange
   useEffect(() => {
     let active = true
     let channel: ReturnType<typeof client.channel> | undefined
-    const refresh = async () => {
-      const { data, error } = await client.from('conversation_themes').select('theme_id,revision,updated_by,updated_by_name,updated_at').eq('room_key',key).maybeSingle()
+    let connected = false
+    let fallbackTimer: ReturnType<typeof setInterval> | null = null
+    let inFlight = false
+    let refreshQueued = false
+    let lastResumeAt = 0
+
+    // Merge simultaneous refresh triggers without losing an event that arrives during a read.
+    const sync = () => {
       if (!active) return
-      setSyncError(Boolean(error))
-      if (!error) setSnapshot(current => newerRoomTheme(current,normalizeRoomTheme(data)))
+      if (inFlight) { refreshQueued = true; return }
+      inFlight = true
+      void (async () => {
+        try {
+          const { data, error: readError } = await client.from('conversation_themes')
+            .select('theme_id,revision,updated_by,updated_by_name,updated_at')
+            .eq('room_key', key)
+            .maybeSingle()
+          if (!active) return
+          setSyncError(Boolean(readError))
+          if (!readError) setSnapshot(current => newerRoomTheme(current, normalizeRoomTheme(data)))
+        } catch {
+          if (active) setSyncError(true)
+        } finally {
+          inFlight = false
+          if (active && refreshQueued) { refreshQueued = false; sync() }
+        }
+      })()
     }
-    const sync = () => { void refresh().catch(() => { if (active) setSyncError(true) }) }
-    const visible = () => { if (document.visibilityState === 'visible') sync() }
+
+    // The 60-second fallback runs only while Realtime is disconnected.
+    const stopFallback = () => {
+      if (fallbackTimer !== null) { window.clearInterval(fallbackTimer); fallbackTimer = null }
+    }
+    const startFallback = () => {
+      if (fallbackTimer !== null) return
+      fallbackTimer = window.setInterval(() => {
+        if (active && !connected && document.visibilityState === 'visible') sync()
+      }, 60_000)
+    }
+    const onDisconnect = () => {
+      if (!active) return
+      connected = false
+      setSyncError(true)
+      startFallback()
+    }
+
+    const onResume = () => {
+      if (!active || document.visibilityState !== 'visible') return
+      const now = Date.now()
+      // focus and visibilitychange often fire together; one catch-up request is enough.
+      if (now - lastResumeAt < 1_500) return
+      lastResumeAt = now
+      sync()
+    }
+
+    // Protect against a Realtime connection that never resolves; the timer is
+    // cleared as soon as a healthy subscription is established.
+    startFallback()
     void (async () => {
-      const { data: { session } } = await client.auth.getSession()
-      if (!active || !session) return
+      const { data: { session }, error: sessionError } = await client.auth.getSession()
+      if (!active) return
+      if (sessionError || !session?.access_token) { onDisconnect(); return }
       await client.realtime.setAuth(session.access_token)
       if (!active) return
       channel = client.channel(`conversation-theme:${key}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_themes', filter: `room_key=eq.${key}` }, () => sync())
-        .subscribe(status => { if (!active) return; if (status === 'SUBSCRIBED') sync(); if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSyncError(true) })
-    })().catch(() => { if (active) setSyncError(true) })
-    sync()
-    // Reconcile missed events, reconnects, and background tabs using authoritative DB state.
-    const timer = window.setInterval(() => { if (document.visibilityState === 'visible') sync() }, 15000)
-    window.addEventListener('focus',sync)
-    document.addEventListener('visibilitychange',visible)
-    return () => { active = false; window.clearInterval(timer); window.removeEventListener('focus',sync); document.removeEventListener('visibilitychange',visible); if (channel) void client.removeChannel(channel) }
-  }, [client,key])
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_themes', filter: `room_key=eq.${key}` }, payload => {
+          if (!active) return
+          // UPDATE/INSERT already contains the new theme: no extra SELECT is necessary.
+          const incoming = normalizeRoomTheme(payload.new)
+          if (incoming.revision > 0) {
+            setSnapshot(current => newerRoomTheme(current, incoming))
+            setSyncError(false)
+          } else {
+            // DELETE or incomplete event: reconcile with the authoritative row.
+            sync()
+          }
+        })
+        .subscribe(status => {
+          if (!active) return
+          if (status === 'SUBSCRIBED') {
+            connected = true
+            stopFallback()
+            // Catch up once in case a change happened before subscription.
+            sync()
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            onDisconnect()
+          }
+        })
+    })().catch(onDisconnect)
+
+    window.addEventListener('focus', onResume)
+    document.addEventListener('visibilitychange', onResume)
+    return () => {
+      active = false
+      stopFallback()
+      window.removeEventListener('focus', onResume)
+      document.removeEventListener('visibilitychange', onResume)
+      if (channel) void client.removeChannel(channel)
+    }
+  }, [client, key])
   const themeName = roomThemes.find(t => t.id === snapshot.theme_id)?.name ?? '기본'
   function open() { setSelected(snapshot.theme_id); setError(''); dialog.current?.showModal() }
   function apply(themeId = selected) {
@@ -75,4 +151,3 @@ export function RoomThemeFrame({ target, initial, unavailable = false, canChange
     </dialog> : null}
   </div>
 }
-
