@@ -35,20 +35,54 @@ export function MessageList({
   const followLatestRef = useRef(true)
   const previousLatestMessageIdRef = useRef<number | null>(null)
   const latestMessageId = messages.at(-1)?.id ?? null
+  const isEmpty = messages.length === 0
 
   useLayoutEffect(() => {
-    const scrollArea = contentRef.current?.parentElement
-    if (!scrollArea) return
+    const content = contentRef.current
+    const scrollArea = content?.parentElement
+    if (!scrollArea || !content) return
 
-    const updateFollowLatest = () => {
-      const distanceFromBottom = scrollArea.scrollHeight - scrollArea.clientHeight - scrollArea.scrollTop
-      followLatestRef.current = distanceFromBottom <= FOLLOW_LATEST_THRESHOLD_PX
+    let lastScrollHeight = scrollArea.scrollHeight
+    let lastClientHeight = scrollArea.clientHeight
+    const isNearBottom = () =>
+      scrollArea.scrollHeight - scrollArea.clientHeight - scrollArea.scrollTop <= FOLLOW_LATEST_THRESHOLD_PX
+    const stickToBottom = () => {
+      scrollArea.scrollTop = scrollArea.scrollHeight
+      lastScrollHeight = scrollArea.scrollHeight
+      lastClientHeight = scrollArea.clientHeight
     }
 
-    updateFollowLatest()
-    scrollArea.addEventListener('scroll', updateFollowLatest, { passive: true })
-    return () => scrollArea.removeEventListener('scroll', updateFollowLatest)
-  }, [])
+    const onScroll = () => {
+      const sizeChanged =
+        scrollArea.scrollHeight !== lastScrollHeight || scrollArea.clientHeight !== lastClientHeight
+      if (sizeChanged) {
+        // Content/toolbar layout changes can dispatch scroll without user input.
+        // Never interpret such a change as the reader deliberately leaving the bottom.
+        if (followLatestRef.current) stickToBottom()
+        lastScrollHeight = scrollArea.scrollHeight
+        lastClientHeight = scrollArea.clientHeight
+        return
+      }
+      followLatestRef.current = isNearBottom()
+    }
+
+    scrollArea.addEventListener('scroll', onScroll, { passive: true })
+    // Message action bars, previews, images, and late font layout may change
+    // height after the latest-message effect has already run.
+    const observer = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          if (followLatestRef.current) stickToBottom()
+          lastScrollHeight = scrollArea.scrollHeight
+          lastClientHeight = scrollArea.clientHeight
+        })
+      : null
+    observer?.observe(content)
+    observer?.observe(scrollArea)
+    return () => {
+      scrollArea.removeEventListener('scroll', onScroll)
+      observer?.disconnect()
+    }
+  }, [isEmpty])
 
   useLayoutEffect(() => {
     const scrollArea = contentRef.current?.parentElement
@@ -71,7 +105,7 @@ export function MessageList({
     scrollArea.scrollTop = scrollArea.scrollHeight
   }, [latestMessageId])
 
-  if (messages.length === 0) {
+  if (isEmpty) {
     return (
       <div ref={contentRef} data-message-scroll-area className="flex flex-1 items-center justify-center py-16 text-sm text-zinc-500">
         아직 메시지가 없습니다.
