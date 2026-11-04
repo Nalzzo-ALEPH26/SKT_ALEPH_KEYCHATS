@@ -195,7 +195,7 @@ export function MessageItem({
         {!isDeleted ? (
           <div
             data-message-actions
-            className={`pointer-events-none absolute bottom-full z-20 flex w-max max-w-[calc(100vw-3rem)] flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 opacity-0 shadow-md transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 ${isOwn ? 'right-0' : 'left-0'}`}
+            className={`mt-0 flex max-h-0 w-fit max-w-full flex-wrap items-center gap-2 overflow-hidden rounded-lg border border-transparent px-2 py-0 text-xs text-zinc-700 opacity-0 transition-opacity group-hover:mt-1 group-hover:max-h-24 group-hover:border-zinc-200 group-hover:bg-white group-hover:py-1 group-hover:opacity-100 group-hover:shadow-md group-focus-within:mt-1 group-focus-within:max-h-24 group-focus-within:border-zinc-200 group-focus-within:bg-white group-focus-within:py-1 group-focus-within:opacity-100 group-focus-within:shadow-md dark:text-zinc-200 dark:group-hover:border-zinc-700 dark:group-hover:bg-zinc-900 dark:group-focus-within:border-zinc-700 dark:group-focus-within:bg-zinc-900`}
           >
             <button type="button" data-reply-to={message.id} onClick={() => onReply?.(message.id)}>답글</button>
             {QUICK_REACTIONS.map((emoji) => (

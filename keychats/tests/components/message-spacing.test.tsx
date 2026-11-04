@@ -51,10 +51,14 @@ describe('message spacing and actions', () => {
     expect((html.match(/data-message-sender-meta/g) ?? [])).toHaveLength(3)
   })
 
-  it('keeps message actions accessible without reserving invisible row height', () => {
+  it('collapses idle actions and reveals them inside their own message on hover or keyboard focus', () => {
     const html = render([message(1, ownUserId, 0)])
     expect(html).toContain('data-message-actions="true"')
-    expect(html).toContain('absolute bottom-full')
+    expect(html).toContain('max-h-0')
+    expect(html).toContain('overflow-hidden')
+    expect(html).toContain('group-hover:max-h-24')
+    expect(html).toContain('group-focus-within:max-h-24')
+    expect(html).not.toContain('absolute bottom-full')
     expect(html).toContain('group-hover:opacity-100')
     expect(html).toContain('group-focus-within:opacity-100')
     expect(html).toContain('data-reply-to="1"')
