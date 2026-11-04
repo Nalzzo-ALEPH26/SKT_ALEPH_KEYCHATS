@@ -115,10 +115,11 @@ export function MessageItem({
       data-own-message={isOwn}
       data-message-group-start={showSenderInfo ? 'true' : 'false'}
       data-message-group-continuation={continuesPrevious ? 'true' : 'false'}
-      className={`group flex gap-3 px-1 ${continuesPrevious ? 'py-0.5' : 'border-t border-zinc-100 py-3 first:border-t-0 dark:border-zinc-900'} ${isOwn ? 'justify-end' : 'justify-start'}`}
+      data-message-spacing={continuesPrevious ? 'continuation' : 'group-start'}
+      className={`group relative flex gap-3 px-1 ${continuesPrevious ? 'pt-[3px]' : 'border-t border-zinc-100 pt-3 first:border-t-0 dark:border-zinc-900'} ${continuesNext ? 'pb-[3px]' : 'pb-2'} ${isOwn ? 'justify-end' : 'justify-start'}`}
     >
       {!isOwn ? (showSenderInfo ? avatar : <div aria-hidden className="order-1 h-9 w-9 shrink-0" />) : null}
-      <div className={`min-w-0 max-w-[min(42rem,82%)] ${isOwn ? 'order-1 flex flex-col items-end text-right' : 'order-2 flex-1'}`}>
+      <div className={`relative min-w-0 max-w-[min(42rem,82%)] ${isOwn ? 'order-1 flex flex-col items-end text-right' : 'order-2 flex-1'}`}>
         {showSenderInfo ? (
           <div data-message-sender-meta className={`flex flex-wrap items-baseline gap-x-2 gap-y-1 ${isOwn ? 'justify-end' : ''}`}>
             <span className="text-sm font-semibold">{message.sender.displayName}</span>
@@ -192,7 +193,10 @@ export function MessageItem({
         ) : null}
 
         {!isDeleted ? (
-          <div className={`mt-1 flex flex-wrap items-center gap-3 text-xs text-zinc-400 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 ${isOwn ? 'justify-end' : ''}`}>
+          <div
+            data-message-actions
+            className={`pointer-events-none absolute bottom-full z-20 flex w-max max-w-[calc(100vw-3rem)] flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 opacity-0 shadow-md transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 ${isOwn ? 'right-0' : 'left-0'}`}
+          >
             <button type="button" data-reply-to={message.id} onClick={() => onReply?.(message.id)}>답글</button>
             {QUICK_REACTIONS.map((emoji) => (
               <button key={emoji} type="button" aria-label={`${emoji} 반응`} data-quick-reaction={emoji} onClick={() => onToggleReaction?.(message.id, emoji)}>{emoji}</button>
