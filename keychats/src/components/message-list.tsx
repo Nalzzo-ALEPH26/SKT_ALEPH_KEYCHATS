@@ -148,7 +148,6 @@ export function MessageList({
               onToggleReaction={onToggleReaction}
               onTogglePin={onTogglePin}
             />
-            {endsDate ? <div data-message-date="end" className="py-2 text-center text-xs text-zinc-500 dark:text-zinc-400">{date}</div> : null}
           </Fragment>
         )
       })}

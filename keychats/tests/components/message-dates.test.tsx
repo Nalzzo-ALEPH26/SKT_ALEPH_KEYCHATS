@@ -17,9 +17,10 @@ const nextDay = '2026년 11월 6일 금요일'
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 describe('local message dates', () => {
-  it('shows both labels for a single message without changing its time', () => {
+  it('shows only the top label for a single message without changing its time', () => {
     const { container } = render(<MessageList {...props} messages={[message(1, '2026-11-05T12:00:00')]} />)
-    expect([...container.querySelectorAll('[data-message-date]')].map((label) => label.textContent)).toEqual([day, day])
+    expect([...container.querySelectorAll('[data-message-date]')].map((label) => label.textContent)).toEqual([day])
+    expect(container.querySelectorAll('[data-message-date="end"]')).toHaveLength(0)
     expect(container.querySelector('time')?.getAttribute('dateTime')).toBe('2026-11-05T12:00:00')
     expect(container.querySelector('[data-message-date]')?.className).toContain('text-center')
   })
@@ -30,8 +31,8 @@ describe('local message dates', () => {
       message(2, '2026-11-05T23:59:00'),
       message(3, '2026-11-06T00:01:00'),
     ]} />)
-    expect([...container.querySelector('[data-message-list]')!.children].map((node) => node.getAttribute('data-message-date') ?? node.getAttribute('data-message-id'))).toEqual(['start', '1', '2', 'end', 'start', '3', 'end'])
-    expect([...container.querySelectorAll('[data-message-date]')].map((label) => label.textContent)).toEqual([day, day, nextDay, nextDay])
+    expect([...container.querySelector('[data-message-list]')!.children].map((node) => node.getAttribute('data-message-date') ?? node.getAttribute('data-message-id'))).toEqual(['start', '1', '2', 'start', '3'])
+    expect([...container.querySelectorAll('[data-message-date]')].map((label) => label.textContent)).toEqual([day, nextDay])
     expect(container.querySelector('[data-message-id="3"]')?.getAttribute('data-message-group-continuation')).toBe('false')
   })
 
@@ -39,7 +40,7 @@ describe('local message dates', () => {
     const messages = [message(2, '2026-11-05T12:01:00')]
     const { container, rerender } = render(<MessageList {...props} messages={messages} hasMoreOlder />)
     expect(container.querySelectorAll('[data-message-date="start"]')).toHaveLength(0)
-    expect(container.querySelectorAll('[data-message-date="end"]')).toHaveLength(1)
+    expect(container.querySelectorAll('[data-message-date="end"]')).toHaveLength(0)
     const original = container.querySelector('[data-message-id="2"]')
     rerender(<MessageList {...props} messages={[message(1, '2026-11-05T12:00:00'), ...messages]} hasMoreOlder={false} />)
     expect(container.querySelectorAll('[data-message-date="start"]')).toHaveLength(1)
@@ -47,13 +48,13 @@ describe('local message dates', () => {
     expect(container.querySelector('[data-message-date="start"]')?.nextElementSibling?.getAttribute('data-message-id')).toBe('1')
   })
 
-  it('shows a confirmed transition after an unknown oldest boundary and moves the end on realtime append', () => {
+  it('keeps only the confirmed top label after an unknown oldest boundary on realtime append', () => {
     const messages = [message(1, '2026-11-05T23:59:00'), message(2, '2026-11-06T00:01:00')]
     const { container, rerender } = render(<MessageList {...props} messages={messages} hasMoreOlder />)
-    expect([...container.querySelectorAll('[data-message-date]')].map((label) => label.textContent)).toEqual([day, nextDay, nextDay])
+    expect([...container.querySelectorAll('[data-message-date]')].map((label) => label.textContent)).toEqual([nextDay])
     rerender(<MessageList {...props} messages={[...messages, message(3, '2026-11-06T00:02:00')]} hasMoreOlder />)
-    expect(container.querySelectorAll('[data-message-date]')).toHaveLength(3)
-    expect(container.querySelector('[data-message-id="3"]')?.nextElementSibling?.getAttribute('data-message-date')).toBe('end')
+    expect(container.querySelectorAll('[data-message-date]')).toHaveLength(1)
+    expect(container.querySelector('[data-message-id="3"]')?.nextElementSibling).toBeNull()
   })
 
   it('does not emit server-timezone labels before browser hydration', () => {
@@ -67,7 +68,7 @@ describe('local message dates', () => {
     const messages = [message(2, '2026-11-05T12:01:00')]
     const { container, rerender } = render(<div data-scroll><MessageList {...props} messages={messages} /></div>)
     const scrollArea = container.querySelector<HTMLElement>('[data-scroll]')!
-    expect(scrollArea.scrollTop).toBe(140)
+    expect(scrollArea.scrollTop).toBe(120)
     scrollArea.scrollTop = 25
     rerender(<div data-scroll><MessageList {...props} messages={[message(1, '2026-11-04T12:00:00'), ...messages]} /></div>)
     expect(scrollArea.scrollTop).toBe(25)
