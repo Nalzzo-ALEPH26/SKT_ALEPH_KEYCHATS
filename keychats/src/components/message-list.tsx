@@ -1,14 +1,16 @@
 'use client'
 
-import { useLayoutEffect, useRef } from 'react'
+import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 
 import { MessageItem, type MessageListItem } from '@/components/message-item'
 import { shouldGroupMessages } from '@/lib/messages/grouping'
+import { formatLocalDate } from '@/lib/time/format'
 
 type MessageListProps = {
   messages: MessageListItem[]
   currentUserId: string
   isAdmin: boolean
+  hasMoreOlder?: boolean
   onReply?: (messageId: number) => void
   onJumpToMessage?: (messageId: number) => void
   onEdit?: (messageId: number) => void
@@ -23,6 +25,7 @@ export function MessageList({
   messages,
   currentUserId,
   isAdmin,
+  hasMoreOlder = false,
   onReply,
   onJumpToMessage,
   onEdit,
@@ -35,6 +38,10 @@ export function MessageList({
   const followLatestRef = useRef(true)
   const previousLatestMessageIdRef = useRef<number | null>(null)
   const latestMessageId = messages.at(-1)?.id ?? null
+  const [datesReady, setDatesReady] = useState(false)
+  const dates = datesReady ? messages.map((message) => formatLocalDate(message.createdAt)) : []
+
+  useLayoutEffect(() => { setDatesReady(true) }, [])
   const isEmpty = messages.length === 0
 
   useLayoutEffect(() => {
@@ -58,6 +65,7 @@ export function MessageList({
       if (sizeChanged) {
         // Content/toolbar layout changes can dispatch scroll without user input.
         // Never interpret such a change as the reader deliberately leaving the bottom.
+        if (isNearBottom()) followLatestRef.current = true
         if (followLatestRef.current) stickToBottom()
         lastScrollHeight = scrollArea.scrollHeight
         lastClientHeight = scrollArea.clientHeight
@@ -86,7 +94,7 @@ export function MessageList({
 
   useLayoutEffect(() => {
     const scrollArea = contentRef.current?.parentElement
-    if (!scrollArea) return
+    if (!scrollArea || !datesReady) return
 
     if (!didInitialScrollRef.current) {
       scrollArea.scrollTop = scrollArea.scrollHeight
@@ -103,7 +111,7 @@ export function MessageList({
     if (!receivedNewLatestMessage || !followLatestRef.current) return
 
     scrollArea.scrollTop = scrollArea.scrollHeight
-  }, [latestMessageId])
+  }, [latestMessageId, datesReady])
 
   if (isEmpty) {
     return (
@@ -118,24 +126,30 @@ export function MessageList({
       {messages.map((message, index) => {
         const previous = messages[index - 1]
         const next = messages[index + 1]
-        const continuesPrevious = shouldGroupMessages(previous, message)
-        const continuesNext = next ? shouldGroupMessages(message, next) : false
+        const date = dates[index]
+        const startsDate = datesReady && (previous ? dates[index - 1] !== date : !hasMoreOlder)
+        const endsDate = datesReady && (!next || dates[index + 1] !== date)
+        const continuesPrevious = !startsDate && shouldGroupMessages(previous, message)
+        const continuesNext = !endsDate && next ? shouldGroupMessages(message, next) : false
 
         return (
-          <MessageItem
-            key={message.id}
-            message={message}
-            currentUserId={currentUserId}
-            isAdmin={isAdmin}
-            continuesPrevious={continuesPrevious}
-            continuesNext={continuesNext}
-            onReply={onReply}
-            onJumpToMessage={onJumpToMessage}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onToggleReaction={onToggleReaction}
-            onTogglePin={onTogglePin}
-          />
+          <Fragment key={message.id}>
+            {startsDate ? <div data-message-date="start" className="py-2 text-center text-xs text-zinc-500 dark:text-zinc-400">{date}</div> : null}
+            <MessageItem
+              message={message}
+              currentUserId={currentUserId}
+              isAdmin={isAdmin}
+              continuesPrevious={continuesPrevious}
+              continuesNext={continuesNext}
+              onReply={onReply}
+              onJumpToMessage={onJumpToMessage}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onToggleReaction={onToggleReaction}
+              onTogglePin={onTogglePin}
+            />
+            {endsDate ? <div data-message-date="end" className="py-2 text-center text-xs text-zinc-500 dark:text-zinc-400">{date}</div> : null}
+          </Fragment>
         )
       })}
     </div>

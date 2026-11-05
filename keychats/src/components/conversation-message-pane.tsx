@@ -548,6 +548,7 @@ export function ConversationMessagePane({
       <div className="min-h-0 flex-1 overflow-y-auto pb-4">
         <MessageList
           messages={renderedMessages}
+          hasMoreOlder={hasMore}
           currentUserId={currentUserId}
           isAdmin={target.kind === 'channel' && isAdmin}
           onReply={(messageId) => { setReplyToId(messageId); setEditingMessageId(null) }}

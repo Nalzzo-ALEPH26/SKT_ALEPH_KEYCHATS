@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 import type { RealtimeMessageRow } from '@/lib/messages/realtime'
+import { fetchUnreadCounts } from '@/lib/messages/unread-client'
 import {
   ADMIN_PENDING_CHANGED_EVENT,
   isRoomBrowserNotificationEnabled,
@@ -94,8 +95,8 @@ export function BrowserMessageNotifications() {
     const startRealtime = async (accessToken: string, currentUserId: string, isAdmin: boolean) => {
       stopRealtime()
 
-      const syncCurrentDmUnread = async () => {
-        const { data, error } = await client.rpc('get_unread_counts')
+      const syncCurrentDmUnread = async (changed = false) => {
+        const { data, error } = await fetchUnreadCounts(client, currentUserId, changed)
         if (!active || error) return
 
         const dmUnreadCount = ((data ?? []) as UnreadCountRow[]).reduce((total, row) => {
@@ -139,7 +140,7 @@ export function BrowserMessageNotifications() {
                 activeDmThreadId() === message.dm_thread_id
               )
             ) {
-              void syncCurrentDmUnread()
+              void syncCurrentDmUnread(true)
             }
 
             const roomType: NotificationRoomType | null = message.dm_thread_id
@@ -179,7 +180,10 @@ export function BrowserMessageNotifications() {
             table: 'read_states',
             filter: `user_id=eq.${currentUserId}`,
           },
-          () => void syncCurrentDmUnread(),
+          (payload) => {
+            const row = payload.new as { channel_id?: string | null }
+            if (!row.channel_id) void syncCurrentDmUnread(true)
+          },
         )
 
       if (isAdmin) {
@@ -190,7 +194,9 @@ export function BrowserMessageNotifications() {
         )
       }
 
-      realtimeChannel = channel.subscribe()
+      realtimeChannel = channel.subscribe((status) => {
+        if (active && status === 'SUBSCRIBED') void syncCurrentDmUnread(true)
+      })
     }
 
     void client.auth.getSession().then(({ data: { session } }) => {

@@ -8,6 +8,7 @@ import { mapCommunityUnreadRows, type CommunityUnreadCountRow } from '@/lib/comm
 import { Sidebar } from '@/components/sidebar'
 import { shouldRefreshForUnknownDmThread } from '@/lib/dms/sidebar-refresh'
 import type { RealtimeMessageRow } from '@/lib/messages/realtime'
+import { fetchUnreadCounts } from '@/lib/messages/unread-client'
 import { ADMIN_PENDING_CHANGED_EVENT } from '@/lib/notifications/preferences'
 import type { KeychatsTheme } from '@/lib/settings/theme'
 import { createClient } from '@/lib/supabase/client'
@@ -233,7 +234,7 @@ export function AppShell({
 
     const syncUnread = async () => {
       const [messageResult, communityResult] = await Promise.all([
-        client.rpc('get_unread_counts'),
+        fetchUnreadCounts(client, currentUserId),
         client.rpc('get_community_unread_counts'),
       ])
       if (!active || messageResult.error || communityResult.error) return

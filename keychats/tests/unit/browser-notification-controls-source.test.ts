@@ -45,7 +45,8 @@ describe('DM unread tab attention', () => {
     const attention = source('../../src/lib/notifications/tab-attention.ts')
 
     expect(listener).toContain('createTabAttentionController')
-    expect(listener).toContain("client.rpc('get_unread_counts')")
+    expect(listener).toContain('fetchUnreadCounts(client, currentUserId, changed)')
+    expect(source('../../src/lib/messages/unread-client.ts')).toContain("client.rpc('get_unread_counts')")
     expect(listener).toContain("row.room_type === 'dm'")
     expect(listener).toContain('attention.setUnreadCount(dmUnreadCount)')
     expect(listener).toContain("table: 'read_states'")

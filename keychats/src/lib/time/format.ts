@@ -12,3 +12,13 @@ export function formatSeoulDateTime(value: string | Date) {
     hour12: false,
   }).format(date)
 }
+
+export function formatLocalDate(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value)
+  return new Intl.DateTimeFormat('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  }).format(date)
+}

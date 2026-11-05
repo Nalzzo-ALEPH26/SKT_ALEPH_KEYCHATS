@@ -41,7 +41,8 @@ describe('password reset, DM read receipts and browser notifications', () => {
   it('drives tab attention from actual DM unread rows instead of focus state or channel messages', () => {
     const listener = source('../../src/components/browser-message-notifications.tsx')
 
-    expect(listener).toContain("client.rpc('get_unread_counts')")
+    expect(listener).toContain('fetchUnreadCounts(client, currentUserId, changed)')
+    expect(source('../../src/lib/messages/unread-client.ts')).toContain("client.rpc('get_unread_counts')")
     expect(listener).toContain("row.room_type === 'dm'")
     expect(listener).toContain("table: 'read_states'")
     expect(listener).toContain('attention.setUnreadCount(dmUnreadCount)')
