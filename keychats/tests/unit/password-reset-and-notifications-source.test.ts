@@ -59,7 +59,7 @@ describe('password reset, DM read receipts and browser notifications', () => {
     expect(icon).toContain('linearGradient id="keychats-blue"')
     expect(icon).toContain('aria-label="Keychats"')
     expect(attention).toContain("const existingIcons = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~=\"icon\"]'))")
-    expect(attention).toContain("const favicon = existingIcons[0] ?? document.createElement('link')")
+    expect(attention).toContain("let favicon = existingIcons[0] ?? document.createElement('link')")
     expect(attention).toContain('const originalIconHref =')
     expect(attention).toContain('existingIcons.slice(1).forEach((icon) => icon.remove())')
     expect(attention).toContain("favicon.setAttribute('data-keychats-alert-icon', 'true')")

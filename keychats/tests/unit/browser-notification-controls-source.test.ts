@@ -54,7 +54,7 @@ describe('DM unread tab attention', () => {
     expect(listener).not.toContain('attention.alert()')
     expect(attention).toContain('document.title')
     expect(attention).toContain("const existingIcons = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~=\"icon\"]'))")
-    expect(attention).toContain("const favicon = existingIcons[0] ?? document.createElement('link')")
+    expect(attention).toContain("let favicon = existingIcons[0] ?? document.createElement('link')")
     expect(attention).toContain('existingIcons.slice(1).forEach((icon) => icon.remove())')
     expect(attention).toContain("favicon.setAttribute('data-keychats-alert-icon', 'true')")
     expect(attention).toContain("favicon.removeAttribute('data-keychats-alert-icon')")

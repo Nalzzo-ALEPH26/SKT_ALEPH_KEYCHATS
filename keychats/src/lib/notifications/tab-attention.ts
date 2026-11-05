@@ -21,7 +21,7 @@ export function createTabAttentionController(document: Document): TabAttentionCo
   let showAlertState = true
   const originalTitle = document.title
   const existingIcons = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'))
-  const favicon = existingIcons[0] ?? document.createElement('link')
+  let favicon = existingIcons[0] ?? document.createElement('link')
   const originalIconHref =
     favicon.getAttribute('href') || favicon.href || '/chats/keychats-tab-icon.svg'
   const originalIconType = favicon.type || 'image/svg+xml'
@@ -33,6 +33,12 @@ export function createTabAttentionController(document: Document): TabAttentionCo
   }
 
   const setFavicon = (href: string, type: string, isAlert: boolean) => {
+    const connectedIcons = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'))
+    if (!favicon.isConnected) {
+      favicon = connectedIcons[0] ?? favicon
+      if (!favicon.isConnected) document.head.appendChild(favicon)
+    }
+    connectedIcons.filter((icon) => icon !== favicon).forEach((icon) => icon.remove())
     favicon.rel = 'icon'
     favicon.type = type
     favicon.href = href
