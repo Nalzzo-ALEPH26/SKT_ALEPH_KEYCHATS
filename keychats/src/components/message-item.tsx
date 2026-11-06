@@ -1,6 +1,7 @@
 import type { AttachmentMetadata } from '@/lib/files/supabase'
 import { splitMessageText } from '@/lib/url-preview/url'
 import { UrlPreviewCard } from '@/components/url-preview-card'
+import { MessageImageLightbox } from '@/components/message-image-lightbox'
 
 type MessageSender = {
   userId: string
@@ -169,9 +170,7 @@ export function MessageItem({
               const href = `/chats/api/attachments/${attachment.id}`
               const isImage = attachment.mimeType.startsWith('image/')
               return isImage ? (
-                <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="block w-fit">
-                  <img src={href} alt={attachment.originalName} className="max-h-80 max-w-full rounded-xl border border-black/10 object-contain dark:border-white/10" />
-                </a>
+                <MessageImageLightbox key={attachment.id} href={href} originalName={attachment.originalName} />
               ) : (
                 <a key={attachment.id} href={href} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-4 rounded-xl border border-black/10 px-3 py-2 text-sm hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5">
                   <span className="min-w-0 truncate">{attachment.originalName}</span>
