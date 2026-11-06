@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Fragment } from 'react'
@@ -100,7 +100,7 @@ function ViewportPopover({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return
 
     const updatePosition = () => {
@@ -121,10 +121,11 @@ function ViewportPopover({
         )
       }
 
-      const estimatedHeight = Math.min(420, window.innerHeight - edge * 2)
+      // Use the rendered panel height: community management can exceed 420px.
+      const panelHeight = panelRef.current?.getBoundingClientRect().height ?? 0
       const top = Math.min(
         Math.max(edge, rect.top),
-        Math.max(edge, window.innerHeight - estimatedHeight - edge),
+        Math.max(edge, window.innerHeight - panelHeight - edge),
       )
       setPosition({ left, top })
     }
