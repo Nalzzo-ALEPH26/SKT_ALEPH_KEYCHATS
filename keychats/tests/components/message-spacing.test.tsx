@@ -48,6 +48,8 @@ describe('message spacing and actions', () => {
     expect(classForMessage(html, 1)).toContain('pb-2')
     expect(classForMessage(html, 2)).toContain('pt-3')
     expect(classForMessage(html, 3)).toContain('pt-3')
+    expect(classForMessage(html, 2)).not.toContain('border-t')
+    expect(classForMessage(html, 3)).not.toContain('border-t')
     expect((html.match(/data-message-sender-meta/g) ?? [])).toHaveLength(3)
   })
 

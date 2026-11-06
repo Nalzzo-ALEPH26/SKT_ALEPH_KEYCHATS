@@ -116,7 +116,7 @@ export function MessageItem({
       data-message-group-start={showSenderInfo ? 'true' : 'false'}
       data-message-group-continuation={continuesPrevious ? 'true' : 'false'}
       data-message-spacing={continuesPrevious ? 'continuation' : 'group-start'}
-      className={`group relative flex gap-3 px-1 ${continuesPrevious ? 'pt-[3px]' : 'border-t border-zinc-100 pt-3 first:border-t-0 dark:border-zinc-900'} ${continuesNext ? 'pb-[3px]' : 'pb-2'} ${isOwn ? 'justify-end' : 'justify-start'}`}
+      className={`group relative flex gap-3 px-1 ${continuesPrevious ? 'pt-[3px]' : 'pt-3'} ${continuesNext ? 'pb-[3px]' : 'pb-2'} ${isOwn ? 'justify-end' : 'justify-start'}`}
     >
       {!isOwn ? (showSenderInfo ? avatar : <div aria-hidden className="order-1 h-9 w-9 shrink-0" />) : null}
       <div className={`relative min-w-0 max-w-[min(42rem,82%)] ${isOwn ? 'order-1 flex flex-col items-end text-right' : 'order-2 flex-1'}`}>

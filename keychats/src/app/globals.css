@@ -87,3 +87,80 @@ a { color: inherit; }
 [data-theme="dark"] [data-own-message="false"] > div.order-2 > div[class*="whitespace-pre-wrap"] {
   border-color: #fff;
 }
+
+/* Custom room themes: let the room background flow behind the composer.
+   The default theme intentionally keeps its existing light/dark composer. */
+.room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] [data-sticky-composer] {
+  background: transparent !important;
+  border-top: 0 !important;
+  padding-top: 0.75rem;
+}
+
+/* A single compact surface for attachment, input, and send controls. */
+.room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] [data-message-composer] {
+  min-width: 0;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem;
+  border: 1px solid var(--rt-border);
+  border-radius: 1.25rem;
+  background: var(--rt-surface);
+  transition: border-color 150ms ease;
+}
+
+.room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] [data-message-composer]:focus-within {
+  border-color: var(--rt-accent);
+}
+
+.room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] [data-message-composer] > label:not(.sr-only) {
+  flex-shrink: 0;
+  height: 2.75rem;
+  border: 0 !important;
+  border-radius: 0.875rem;
+  background: transparent !important;
+  color: var(--rt-text) !important;
+  padding-inline: 0.75rem;
+}
+
+.room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] [data-message-composer] textarea {
+  min-width: 0;
+  flex: 1 1 0%;
+  min-height: 2.75rem;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--rt-text) !important;
+  box-shadow: none !important;
+  padding: 0.625rem 0.375rem;
+}
+
+.room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] [data-message-composer] [data-send-message] {
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  height: 2.75rem;
+  padding-inline: 0.875rem;
+  border-radius: 0.875rem;
+  background: var(--rt-own) !important;
+  color: var(--rt-own-text) !important;
+}
+
+/* Avoid a bright scrollbar track against a dark custom room theme. */
+.room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] .overflow-y-auto {
+  scrollbar-color: var(--rt-border) transparent;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 550px) {
+  .room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] [data-message-composer] {
+    gap: 0.25rem;
+    padding: 0.25rem;
+  }
+
+  .room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] [data-message-composer] > label:not(.sr-only) {
+    padding-inline: 0.625rem;
+  }
+
+  .room-theme-frame:not([data-room-theme="default"]) [data-conversation-message-pane] [data-message-composer] [data-send-message] {
+    padding-inline: 0.625rem;
+  }
+}
