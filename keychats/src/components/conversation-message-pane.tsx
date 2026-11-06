@@ -33,6 +33,7 @@ import {
   toggleMessageReactionAction,
 } from '@/app/(workspace)/message-state-actions'
 import { MessageList } from '@/components/message-list'
+import { SelectedAttachmentsPreview } from '@/components/selected-attachments-preview'
 import {
   loadAttachmentsForMessages,
   uploadMessageAttachments,
@@ -573,14 +574,12 @@ export function ConversationMessagePane({
           </div>
         ) : null}
         {!editingTarget && selectedFiles.length > 0 ? (
-          <div className="mb-2 flex flex-wrap gap-2" data-selected-attachments>
-            {selectedFiles.map((file, index) => (
-              <span key={`${file.name}-${file.size}-${index}`} className="inline-flex max-w-full items-center gap-2 rounded-full bg-zinc-100 px-3 py-1.5 text-xs dark:bg-zinc-900">
-                <span className="max-w-48 truncate">{file.name}</span>
-                <button type="button" aria-label={`${file.name} 첨부 취소`} onClick={() => setSelectedFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))} className="text-zinc-500">×</button>
-              </span>
-            ))}
-          </div>
+          <SelectedAttachmentsPreview
+            files={selectedFiles}
+            disabled={busy}
+            onRemove={(index) => setSelectedFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+            onClear={() => setSelectedFiles([])}
+          />
         ) : null}
 
         <form onSubmit={handleSubmit} className="flex items-end gap-2" data-message-composer>
