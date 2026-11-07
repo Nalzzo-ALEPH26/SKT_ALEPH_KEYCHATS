@@ -16,7 +16,7 @@ export function SignupRequestForm() {
         <p className="text-xs font-semibold tracking-[0.2em] text-black/40">KEYCHATS</p>
         <h1 className="mt-4 text-3xl font-semibold tracking-tight text-zinc-950">가입 요청 완료</h1>
         <p className="mt-3 text-sm leading-6 text-black/60">관리자 승인 후 입력한 아이디와 비밀번호로 로그인할 수 있습니다.</p>
-        <Link href="/login" className="mt-6 block rounded-xl bg-zinc-950 px-4 py-3 text-center text-sm font-semibold text-white">로그인으로 돌아가기</Link>
+        <Link href="/login" className="mt-6 block rounded-xl border border-black bg-transparent px-4 py-3 text-center text-sm font-semibold text-black">로그인으로 돌아가기</Link>
       </section>
     )
   }
