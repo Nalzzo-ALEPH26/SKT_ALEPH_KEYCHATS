@@ -24,6 +24,7 @@ function fakeSupabase(results: Result[]) {
   query.eq = chain('eq')
   query.in = chain('in')
   query.is = chain('is')
+  query.or = chain('or')
   query.insert = chain('insert')
   query.update = chain('update')
   query.delete = chain('delete')
@@ -85,6 +86,48 @@ describe('createSupabaseMessageStateRepository', () => {
       expect.objectContaining({ last_read_message_id: 42 }),
     ])
     expect(fake.calls).toContainEqual(['eq', 'id', 'read-1'])
+    expect(fake.calls).toContainEqual([
+      'or',
+      'last_read_message_id.is.null,last_read_message_id.lt.42',
+    ])
+  })
+
+  it('uses a database-side conditional update for stale requests from another tab', async () => {
+    const fake = fakeSupabase([
+      { data: { id: 'read-dm' }, error: null },
+      { data: null, error: null },
+    ])
+    const repository = createSupabaseMessageStateRepository(fake.client as never)
+
+    await repository.setReadState({
+      userId: 'user-a',
+      channelId: null,
+      dmThreadId: 'dm-a',
+      lastReadMessageId: 956,
+    })
+
+    expect(fake.calls).toContainEqual(['eq', 'dm_thread_id', 'dm-a'])
+    expect(fake.calls).toContainEqual(['is', 'channel_id', null])
+    expect(fake.calls).toContainEqual([
+      'or',
+      'last_read_message_id.is.null,last_read_message_id.lt.956',
+    ])
+    // The DB predicate prevents overwriting an existing marker at or above 956,
+    // even if it advances after the initial SELECT.
+  })
+
+  it('never resets an existing read position to null', async () => {
+    const fake = fakeSupabase([{ data: { id: 'read-dm' }, error: null }])
+    const repository = createSupabaseMessageStateRepository(fake.client as never)
+
+    await repository.setReadState({
+      userId: 'user-a',
+      channelId: null,
+      dmThreadId: 'dm-a',
+      lastReadMessageId: null,
+    })
+
+    expect(fake.calls.some(([name]) => name === 'update' || name === 'insert')).toBe(false)
   })
 })
 

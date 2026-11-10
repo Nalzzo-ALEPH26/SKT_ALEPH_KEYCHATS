@@ -160,8 +160,15 @@ export function createSupabaseMessageStateRepository(
       }
 
       if (existing) {
+        // Read positions must only move forward. Apply the comparison in UPDATE itself
+        // so concurrent requests from different tabs cannot overwrite a newer marker.
+        if (input.lastReadMessageId === null) return
         await execute(
-          client.from('read_states').update(patch).eq('id', (existing as { id: string }).id),
+          client
+            .from('read_states')
+            .update(patch)
+            .eq('id', (existing as { id: string }).id)
+            .or(`last_read_message_id.is.null,last_read_message_id.lt.${input.lastReadMessageId}`),
           'READ_STATE_UPDATE_FAILED',
         )
         return
