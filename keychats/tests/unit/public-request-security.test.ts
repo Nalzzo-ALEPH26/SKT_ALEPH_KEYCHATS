@@ -25,7 +25,7 @@ describe('public request quotas', () => {
   })
 
   it('does not send plaintext IPs or login IDs to the database', async () => {
-    const rpc = vi.fn(async () => ({ data: true, error: null }))
+    const rpc = vi.fn(async (_name: string, _args: Record<string, unknown>) => ({ data: true, error: null }))
     expect(await consumePublicRequestQuota({ rpc } as never, 'signup_ip', '203.0.113.40', 5, 3600)).toBe(true)
     const args = rpc.mock.calls[0]?.[1] as Record<string, unknown>
     expect(args.p_subject_hash).toMatch(/^[0-9a-f]{64}$/)
