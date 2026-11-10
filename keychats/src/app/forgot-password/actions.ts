@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 
 import { getPasswordResetStatus, requestPasswordReset } from '@/lib/password-reset/service'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getPublicClientAddress } from '@/lib/security/public-request-quotas'
 
 const COOKIE_NAME = 'keychats_password_reset_token'
 
@@ -18,8 +19,14 @@ export async function requestTemporaryPasswordAction(
 ): Promise<PasswordResetRequestState> {
   const rawLoginId = String(formData.get('loginId') ?? '')
   try {
-    const { token } = await requestPasswordReset(createAdminClient(), rawLoginId)
     const cookieStore = await cookies()
+    const tokenFromCurrentBrowser = cookieStore.get(COOKIE_NAME)?.value
+    const { token } = await requestPasswordReset(
+      createAdminClient(),
+      rawLoginId,
+      await getPublicClientAddress(),
+      tokenFromCurrentBrowser,
+    )
     cookieStore.set(COOKIE_NAME, token, {
       httpOnly: true,
       sameSite: 'lax',
@@ -28,7 +35,10 @@ export async function requestTemporaryPasswordAction(
       maxAge: 30 * 60,
     })
     return { submitted: true, error: null }
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === 'PUBLIC_REQUEST_RATE_LIMITED') {
+      return { submitted: false, error: '요청 횟수가 많습니다. 잠시 후 다시 시도해 주세요.' }
+    }
     return { submitted: false, error: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.' }
   }
 }

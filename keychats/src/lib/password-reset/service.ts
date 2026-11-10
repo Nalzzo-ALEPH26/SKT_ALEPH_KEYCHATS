@@ -12,11 +12,20 @@ import {
   hashPasswordResetToken,
 } from '@/lib/password-reset/crypto'
 import type { PasswordResetStatus, PendingPasswordResetRequest } from '@/lib/password-reset/types'
+import { consumePublicRequestQuota } from '@/lib/security/public-request-quotas'
 
 const RESET_WINDOW_MS = 30 * 60 * 1000
 
-export async function requestPasswordReset(admin: SupabaseClient, rawLoginId: string) {
+export async function requestPasswordReset(
+  admin: SupabaseClient,
+  rawLoginId: string,
+  clientAddress: string,
+  previousToken?: string,
+) {
   const token = generatePasswordResetToken()
+  const ipAllowed = await consumePublicRequestQuota(admin, 'reset_ip', clientAddress, 8, 600)
+  if (!ipAllowed) throw new Error('PUBLIC_REQUEST_RATE_LIMITED')
+
   let username: string
   try {
     username = normalizeLoginId(rawLoginId)
@@ -37,12 +46,30 @@ export async function requestPasswordReset(admin: SupabaseClient, rawLoginId: st
 
   const now = new Date()
   const expiresAt = new Date(now.getTime() + RESET_WINDOW_MS).toISOString()
-  const { error: cancelError } = await admin
+
+  // Never cancel a valid request from a different browser. Reuse the token only
+  // when the current browser proves possession of the original request cookie.
+  const { data: pending, error: pendingError } = await admin
     .from('password_reset_requests')
-    .update({ status: 'cancelled' })
+    .select('id,request_token_hash')
     .eq('user_id', profile.user_id)
     .eq('status', 'pending')
-  if (cancelError) throw cancelError
+    .gt('expires_at', now.toISOString())
+    .order('requested_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (pendingError) throw pendingError
+  if (pending) {
+    if (previousToken && hashPasswordResetToken(previousToken) === pending.request_token_hash) {
+      return { token: previousToken }
+    }
+    // Generic response avoids revealing whether an account already has a request.
+    return { token }
+  }
+
+  // A short per-account creation cooldown closes the concurrent-request race.
+  const loginAllowed = await consumePublicRequestQuota(admin, 'reset_login', username, 1, 120)
+  if (!loginAllowed) return { token }
 
   const { data: insertedRequest, error: insertError } = await admin
     .from('password_reset_requests')
