@@ -8,6 +8,7 @@ import {
   useState,
   type ChangeEvent,
   type ClipboardEvent,
+  type DragEvent as ReactDragEvent,
   type FormEvent,
   type KeyboardEvent,
 } from 'react'
@@ -136,6 +137,8 @@ export function ConversationMessagePane({
   const [messageState, setMessageState] = useState<MessageStateSnapshot>({})
   const [attachments, setAttachments] = useState<AttachmentMetadata[]>([])
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [draggingFiles, setDraggingFiles] = useState(false)
+  const fileDragDepthRef = useRef(0)
   const [draft, setDraft] = useState('')
   const [replyToId, setReplyToId] = useState<number | null>(null)
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null)
@@ -342,6 +345,53 @@ export function ConversationMessagePane({
     event.target.value = ''
   }
 
+  const hasDraggedFiles = (event: ReactDragEvent<HTMLElement>) =>
+    Array.from(event.dataTransfer.types).includes('Files')
+
+  const handleFileDragEnter = (event: ReactDragEvent<HTMLElement>) => {
+    if (!hasDraggedFiles(event) || busy || editingMessageId !== null) return
+    event.preventDefault()
+    fileDragDepthRef.current += 1
+    setDraggingFiles(true)
+  }
+
+  const handleFileDragOver = (event: ReactDragEvent<HTMLElement>) => {
+    if (!hasDraggedFiles(event)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = busy || editingMessageId !== null ? 'none' : 'copy'
+  }
+
+  const handleFileDragLeave = (event: ReactDragEvent<HTMLElement>) => {
+    if (!hasDraggedFiles(event)) return
+    fileDragDepthRef.current = Math.max(0, fileDragDepthRef.current - 1)
+    if (fileDragDepthRef.current === 0) setDraggingFiles(false)
+  }
+
+  const handleFileDrop = (event: ReactDragEvent<HTMLElement>) => {
+    if (!hasDraggedFiles(event)) return
+    event.preventDefault()
+    fileDragDepthRef.current = 0
+    setDraggingFiles(false)
+    if (busy || editingMessageId !== null) {
+      setError('전송 중이거나 메시지 수정 중에는 파일을 추가할 수 없습니다.')
+      return
+    }
+    addFiles(Array.from(event.dataTransfer.files))
+  }
+
+  // Prevent browser navigation if a file is accidentally dropped outside the pane.
+  useEffect(() => {
+    const blockFileNavigation = (event: DragEvent) => {
+      if (Array.from(event.dataTransfer?.types ?? []).includes('Files')) event.preventDefault()
+    }
+    window.addEventListener('dragover', blockFileNavigation)
+    window.addEventListener('drop', blockFileNavigation)
+    return () => {
+      window.removeEventListener('dragover', blockFileNavigation)
+      window.removeEventListener('drop', blockFileNavigation)
+    }
+  }, [])
+
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const images = Array.from(event.clipboardData.files)
       .filter((file) => file.type.startsWith('image/'))
@@ -532,12 +582,21 @@ export function ConversationMessagePane({
 
   return (
     <section
-      className="flex min-h-0 flex-1 flex-col pt-3"
+      className="relative flex min-h-0 flex-1 flex-col pt-3"
+      onDragEnter={handleFileDragEnter}
+      onDragOver={handleFileDragOver}
+      onDragLeave={handleFileDragLeave}
+      onDrop={handleFileDrop}
       data-conversation-message-pane
       data-channel-message-pane={target.kind === 'channel' ? true : undefined}
       data-dm-message-pane={target.kind === 'dm' ? true : undefined}
       data-realtime-status={realtimeStatus}
     >
+      {draggingFiles && !busy && editingMessageId === null ? (
+        <div data-file-drop-overlay role="status" aria-live="polite" className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-2xl border-2 border-dashed border-blue-400 bg-slate-900/85 px-4 text-center text-lg font-semibold text-white shadow-xl">
+          <span>📎 파일을 여기에 놓아 첨부하기</span>
+        </div>
+      ) : null}
       {hasMore ? (
         <div className="flex shrink-0 justify-center pb-2">
           <button type="button" data-load-older disabled={busy} onClick={handleLoadOlder} className="rounded-full border border-black/10 px-3 py-1.5 text-xs font-medium text-zinc-600 disabled:opacity-50 dark:border-white/10 dark:text-zinc-300">

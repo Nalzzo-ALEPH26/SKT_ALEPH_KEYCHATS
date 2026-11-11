@@ -31,6 +31,15 @@ import {
   type NotificationRoomType,
 } from '@/lib/notifications/preferences'
 import { isSidebarHrefActive, sortSidebarCommunities, type SidebarCommunity } from '@/lib/sidebar/presentation'
+import {
+  FAVORITES_STORAGE_PREFIX,
+  moveSidebarFavoriteKey,
+  readSidebarFavoriteKeys,
+  shiftSidebarFavoriteKey,
+  sidebarFavoriteKey,
+  toggleSidebarFavoriteKey,
+  type FavoriteRoomKind,
+} from '@/lib/sidebar/favorites'
 import type { KeychatsTheme } from '@/lib/settings/theme'
 import { createClient } from '@/lib/supabase/client'
 
@@ -60,6 +69,10 @@ type ChannelProfile = {
 }
 
 type CommunityItem = SidebarCommunity
+
+type FavoriteRoomEntry =
+  | { key: string; kind: 'channel'; channel: ChannelItem }
+  | { key: string; kind: 'dm'; direct: DirectItem }
 
 type SidebarProps = {
   profile: {
@@ -338,6 +351,57 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname()
   const [notificationPreferences, setNotificationPreferences] = useState<BrowserNotificationPreferenceMap>({})
+  const [favoriteKeys, setFavoriteKeys] = useState<string[]>([])
+  const [favoritesLoadedFor, setFavoritesLoadedFor] = useState<string | null>(null)
+  const [draggingFavorite, setDraggingFavorite] = useState<string | null>(null)
+
+  // localStorage is read after hydration. The user ID prevents sharing settings
+  // between accounts on the same browser. Storage events sync open tabs.
+  useEffect(() => {
+    const storageKey = `${FAVORITES_STORAGE_PREFIX}${currentUserId}`
+    if (!currentUserId) {
+      setFavoriteKeys([])
+      setFavoritesLoadedFor(null)
+      return
+    }
+    try {
+      setFavoriteKeys(readSidebarFavoriteKeys(window.localStorage.getItem(storageKey)))
+    } catch {
+      setFavoriteKeys([])
+    }
+    setFavoritesLoadedFor(currentUserId)
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === storageKey) setFavoriteKeys(readSidebarFavoriteKeys(event.newValue))
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [currentUserId])
+
+  useEffect(() => {
+    if (!currentUserId || favoritesLoadedFor !== currentUserId) return
+    try {
+      window.localStorage.setItem(`${FAVORITES_STORAGE_PREFIX}${currentUserId}`, JSON.stringify(favoriteKeys))
+    } catch {
+      // Full or unavailable browser storage should not break chat navigation.
+    }
+  }, [currentUserId, favoriteKeys, favoritesLoadedFor])
+
+  const toggleFavorite = (kind: FavoriteRoomKind, id: string) => {
+    setFavoriteKeys((keys) => toggleSidebarFavoriteKey(keys, sidebarFavoriteKey(kind, id)))
+  }
+  const favoriteSet = new Set(favoriteKeys)
+  const favorites: FavoriteRoomEntry[] = favoriteKeys.flatMap<FavoriteRoomEntry>((key) => {
+    if (key.startsWith('channel:')) {
+      const channel = channels.find((item) => item.id === key.slice('channel:'.length))
+      return channel ? [{ key, kind: 'channel' as const, channel }] : []
+    }
+    if (key.startsWith('dm:')) {
+      const direct = directMessages.find((item) => item.id === key.slice('dm:'.length))
+      return direct ? [{ key, kind: 'dm' as const, direct }] : []
+    }
+    return []
+  })
 
   useEffect(() => {
     if (!currentUserId) return
@@ -408,6 +472,58 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto">
+        {favorites.length > 0 ? (
+          <section data-sidebar-favorites>
+            <div className={`mb-2 flex items-center justify-between px-2 text-xs font-semibold tracking-[0.14em] ${muted}`}>
+              <span>FAVORITES</span>
+              <span className="text-[10px] font-normal tracking-normal">드래그로 정렬</span>
+            </div>
+            <div className="space-y-1">
+              {favorites.map((room, index) => {
+                const isChannel = room.kind === 'channel'
+                const href = isChannel ? `/channel/${room.channel.id}` : `/dm/${room.direct.id}`
+                const name = isChannel ? room.channel.name : room.direct.displayName
+                const count = isChannel ? room.channel.unreadCount : room.direct.unreadCount
+                const favoriteName = `${isChannel ? '채널' : 'DM'} ${name}`
+                return (
+                  <div
+                    key={room.key}
+                    data-sidebar-favorite={room.key}
+                    draggable={favorites.length > 1}
+                    onDragStart={(event) => {
+                      setDraggingFavorite(room.key)
+                      event.dataTransfer.effectAllowed = 'move'
+                      event.dataTransfer.setData('text/plain', room.key)
+                    }}
+                    onDragOver={(event) => {
+                      if (draggingFavorite) {
+                        event.preventDefault()
+                        event.dataTransfer.dropEffect = 'move'
+                      }
+                    }}
+                    onDrop={(event) => {
+                      if (!draggingFavorite) return
+                      event.preventDefault()
+                      setFavoriteKeys((keys) => moveSidebarFavoriteKey(keys, draggingFavorite, room.key))
+                      setDraggingFavorite(null)
+                    }}
+                    onDragEnd={() => setDraggingFavorite(null)}
+                    className={`flex min-w-0 items-center gap-0.5 rounded-lg ${draggingFavorite === room.key ? 'opacity-60' : ''}`}
+                  >
+                    <span aria-hidden="true" title="드래그해 순서 변경" className="shrink-0 cursor-grab select-none text-[11px] text-slate-400">⠿</span>
+                    <Link href={href} data-sidebar-active={isSidebarHrefActive(pathname, href) ? 'true' : 'false'} className={rowLinkClass(href)}>
+                      <span className="min-w-0 truncate">{isChannel ? '#' : '●'} {name}</span>
+                      <UnreadBadge count={count} />
+                    </Link>
+                    <button type="button" aria-label={`${favoriteName} 즐겨찾기 해제`} onClick={() => toggleFavorite(room.kind, isChannel ? room.channel.id : room.direct.id)} className="shrink-0 rounded p-1 text-blue-400 hover:bg-slate-700" title="즐겨찾기 해제">★</button>
+                    <button type="button" aria-label={`${favoriteName} 위로 이동`} disabled={index === 0} onClick={() => setFavoriteKeys((keys) => shiftSidebarFavoriteKey(keys, room.key, -1))} className="shrink-0 rounded p-0.5 text-xs text-slate-400 hover:bg-slate-700 disabled:opacity-30" title="위로 이동">↑</button>
+                    <button type="button" aria-label={`${favoriteName} 아래로 이동`} disabled={index === favorites.length - 1} onClick={() => setFavoriteKeys((keys) => shiftSidebarFavoriteKey(keys, room.key, 1))} className="shrink-0 rounded p-0.5 text-xs text-slate-400 hover:bg-slate-700 disabled:opacity-30" title="아래로 이동">↓</button>
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        ) : null}
         <section>
           <div className={`mb-2 flex items-center justify-between px-2 text-xs font-semibold tracking-[0.14em] ${muted}`}>
             <span>CHANNELS</span>
@@ -452,6 +568,15 @@ export function Sidebar({
                     <span className="min-w-0 truncate">#{channel.name}</span>
                     <UnreadBadge count={channel.unreadCount} />
                   </Link>
+                  <button
+                    type="button"
+                    data-favorite-toggle={`channel:${channel.id}`}
+                    aria-pressed={favoriteSet.has(sidebarFavoriteKey('channel', channel.id))}
+                    aria-label={`${channel.name} 채널 즐겨찾기 ${favoriteSet.has(sidebarFavoriteKey('channel', channel.id)) ? '해제' : '추가'}`}
+                    title={favoriteSet.has(sidebarFavoriteKey('channel', channel.id)) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                    onClick={() => toggleFavorite('channel', channel.id)}
+                    className={`shrink-0 rounded p-1 text-sm transition hover:bg-slate-700 ${favoriteSet.has(sidebarFavoriteKey('channel', channel.id)) ? 'text-blue-400' : 'text-slate-400'}`}
+                  >{favoriteSet.has(sidebarFavoriteKey('channel', channel.id)) ? '★' : '☆'}</button>
                   <RoomNotificationToggle
                     roomType="channel"
                     roomId={channel.id}
@@ -520,6 +645,15 @@ export function Sidebar({
                     <span className="min-w-0 truncate">{direct.displayName}</span>
                     <UnreadBadge count={direct.unreadCount} />
                   </Link>
+                  <button
+                    type="button"
+                    data-favorite-toggle={`dm:${direct.id}`}
+                    aria-pressed={favoriteSet.has(sidebarFavoriteKey('dm', direct.id))}
+                    aria-label={`${direct.displayName} DM 즐겨찾기 ${favoriteSet.has(sidebarFavoriteKey('dm', direct.id)) ? '해제' : '추가'}`}
+                    title={favoriteSet.has(sidebarFavoriteKey('dm', direct.id)) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                    onClick={() => toggleFavorite('dm', direct.id)}
+                    className={`shrink-0 rounded p-1 text-sm transition hover:bg-slate-700 ${favoriteSet.has(sidebarFavoriteKey('dm', direct.id)) ? 'text-blue-400' : 'text-slate-400'}`}
+                  >{favoriteSet.has(sidebarFavoriteKey('dm', direct.id)) ? '★' : '☆'}</button>
                   <RoomNotificationToggle
                     roomType="dm"
                     roomId={direct.id}
