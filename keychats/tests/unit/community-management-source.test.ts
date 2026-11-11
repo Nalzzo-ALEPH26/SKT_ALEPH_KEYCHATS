@@ -17,7 +17,8 @@ describe('community and visual presentation', () => {
     expect(workspaceLayout).toContain('is_notice')
     expect(workspaceLayout).toContain('isNotice: Boolean(community.is_notice)')
     expect(presentation).toContain('isNotice?: boolean')
-    expect(globals).toContain('a[href$="/feedback"]')
+    // Protect the redirect-only route without relying on CSS quote style.
+    expect(globals).toMatch(/\[data-sidebar-root\]\s+a\[href\$=(['"])\/feedback\1\]\s*\{\s*display:\s*none\s*!important;\s*\}/)
   })
 
   it('lets a board creator moderate both posts and comments', () => {
@@ -45,7 +46,10 @@ describe('community and visual presentation', () => {
   it('matches sidebar plus controls and outlines other-user chat bubbles by theme', () => {
     const globals = source('../../src/app/globals.css')
     expect(globals).toContain('[data-channel-create-trigger]')
-    expect(globals).toContain('color: rgb(255 240 201 / 65%) !important')
+    // The Slate Dark & Cyber sidebar uses its own muted token and blue hover accent.
+    expect(globals).toContain('--kc-sidebar-muted: #94a3b8;')
+    expect(globals).toMatch(/\[data-sidebar-root\]\s+\[data-channel-create-trigger\]\s*\{[^}]*color:\s*var\(--kc-sidebar-muted\)\s*!important;/)
+    expect(globals).toMatch(/\[data-sidebar-root\]\s+\[data-channel-create-trigger\]:hover\s*\{[^}]*color:\s*#60a5fa\s*!important;/)
     expect(globals).toContain('[data-own-message="false"]')
     expect(globals).toContain('border: 1px solid #000')
     expect(globals).toContain('border-color: #fff')
