@@ -39,7 +39,6 @@ a { color: inherit; }
   background: var(--kc-sidebar-bg) !important;
   color: var(--kc-sidebar-text) !important;
   border-color: var(--kc-sidebar-border) !important;
-  font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   padding: 1rem !important;
 }
 
