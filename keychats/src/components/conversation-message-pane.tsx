@@ -628,7 +628,7 @@ export function ConversationMessagePane({
 
   return (
     <section
-      className="relative flex min-h-0 flex-1 flex-col pt-3 xl:flex-row xl:gap-5"
+      className="relative flex min-h-0 flex-1 flex-col pt-3 min-[1680px]:flex-row min-[1680px]:gap-6"
       onDragEnter={handleFileDragEnter}
       onDragOver={handleFileDragOver}
       onDragLeave={handleFileDragLeave}
@@ -638,14 +638,14 @@ export function ConversationMessagePane({
       data-dm-message-pane={target.kind === 'dm' ? true : undefined}
       data-realtime-status={realtimeStatus}
     >
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col min-[1680px]:mx-auto min-[1680px]:w-full min-[1680px]:max-w-[60rem]">
       {draggingFiles && !busy && editingMessageId === null ? (
         <div data-file-drop-overlay role="status" aria-live="polite" className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-2xl border-2 border-dashed border-blue-400 bg-slate-900/85 px-4 text-center text-lg font-semibold text-white shadow-xl">
           <span>📎 파일을 여기에 놓아 첨부하기</span>
         </div>
       ) : null}
       {pinnedMessages.length > 0 ? (
-        <details data-mobile-pinned-messages className="mb-2 shrink-0 rounded-xl border border-black/10 dark:border-white/15 xl:hidden">
+        <details data-mobile-pinned-messages className="mb-2 shrink-0 rounded-xl border border-black/10 dark:border-white/15 min-[1680px]:hidden">
           <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">고정 메시지 {pinnedMessages.length}개</summary>
           <div className="max-h-48 overflow-y-auto border-t border-black/10 px-3 py-2 dark:border-white/15">
             <PinnedMessageList items={pinnedMessages} profiles={profiles} onJumpToMessage={handleJumpToMessage} onUnpin={handleTogglePin} />
@@ -724,7 +724,7 @@ export function ConversationMessagePane({
         {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
       </div>
       </div>
-      <aside data-pinned-messages-panel aria-label="고정된 메시지" className="hidden w-64 shrink-0 flex-col border-l border-black/10 pl-4 dark:border-white/15 xl:flex">
+      <aside data-pinned-messages-panel aria-label="고정된 메시지" className="hidden w-80 shrink-0 flex-col border-l border-black/10 pl-4 dark:border-white/15 min-[1680px]:flex">
         <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">고정된 메시지</h2>
           <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">{pinnedMessages.length}</span>
