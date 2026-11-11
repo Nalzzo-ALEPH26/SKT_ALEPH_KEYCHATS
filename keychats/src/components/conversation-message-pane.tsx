@@ -34,6 +34,7 @@ import {
   toggleMessageReactionAction,
 } from '@/app/(workspace)/message-state-actions'
 import { MessageList } from '@/components/message-list'
+import { PinnedMessageList, type PinnedMessage } from '@/components/pinned-message-list'
 import { SelectedAttachmentsPreview } from '@/components/selected-attachments-preview'
 import {
   loadAttachmentsForMessages,
@@ -79,6 +80,17 @@ type MessageStateSnapshot = Record<
     }>
   }
 >
+
+type PinnedMessageJoinRow = {
+  message_id: number
+  pinned_at: string
+  messages: {
+    id: number
+    body: string | null
+    sender_id: string
+    deleted_at: string | null
+  } | null
+}
 
 const FILE_ACCEPT = [
   'image/jpeg',
@@ -135,10 +147,12 @@ export function ConversationMessagePane({
   const client = useMemo(() => createClient(), [])
   const [messages, setMessages] = useState(initialMessages)
   const [messageState, setMessageState] = useState<MessageStateSnapshot>({})
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([])
   const [attachments, setAttachments] = useState<AttachmentMetadata[]>([])
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [draggingFiles, setDraggingFiles] = useState(false)
   const fileDragDepthRef = useRef(0)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
   const [draft, setDraft] = useState('')
   const [replyToId, setReplyToId] = useState<number | null>(null)
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null)
@@ -159,6 +173,30 @@ export function ConversationMessagePane({
     const snapshot = await loadMessageStateAction({ messageIds: ids })
     setMessageState((current) => ({ ...current, ...snapshot }))
   }, [])
+
+  const refreshPinnedMessages = useCallback(async () => {
+    // Both the pin table and its joined message are protected by room-aware RLS.
+    const roomKey = target.kind === 'channel' ? 'messages.channel_id' : 'messages.dm_thread_id'
+    const { data, error } = await client
+      .from('message_pins')
+      .select('message_id,pinned_at,messages!inner(id,body,sender_id,deleted_at,channel_id,dm_thread_id)')
+      .eq(roomKey, target.id)
+      .is('messages.deleted_at', null)
+      .order('pinned_at', { ascending: false })
+      .limit(200)
+    if (error) throw error
+
+    const pins: PinnedMessage[] = ((data ?? []) as unknown as PinnedMessageJoinRow[])
+      .flatMap((pin) => pin.messages && !pin.messages.deleted_at
+        ? [{ id: pin.message_id, body: pin.messages.body, senderId: pin.messages.sender_id, pinnedAt: pin.pinned_at }]
+        : [])
+    setPinnedMessages(pins)
+  }, [client, target.id, target.kind])
+
+  useEffect(() => {
+    setPinnedMessages([])
+    void refreshPinnedMessages().catch(() => setError('고정 메시지를 불러오지 못했습니다.'))
+  }, [refreshPinnedMessages])
 
   const refreshAttachments = useCallback(async (ids: number[]) => {
     if (ids.length === 0) return
@@ -213,6 +251,7 @@ export function ConversationMessagePane({
       setMessages((current) => reconcileMessageChange(current, incoming))
       void refreshMessageState([incoming.id]).catch(() => undefined)
       void refreshAttachments([incoming.id]).catch(() => undefined)
+      if (incoming.deleted_at) void refreshPinnedMessages().catch(() => undefined)
     }
     const onStatus = (status: string) => {
       if (!active) return
@@ -238,7 +277,7 @@ export function ConversationMessagePane({
       active = false
       unsubscribe?.()
     }
-  }, [client, refreshAttachments, refreshMessageState, syncLatestMessages, target.id, target.kind])
+  }, [client, refreshAttachments, refreshMessageState, refreshPinnedMessages, syncLatestMessages, target.id, target.kind])
 
   useEffect(() => {
     let active = true
@@ -264,7 +303,10 @@ export function ConversationMessagePane({
       stateChannel = client
         .channel(`message-state:${target.kind}:${target.id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, refreshStatePayload)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'message_pins' }, refreshStatePayload)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'message_pins' }, (payload) => {
+          refreshStatePayload(payload)
+          void refreshPinnedMessages().catch(() => undefined)
+        })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'attachments' }, refreshFilePayload)
         .subscribe()
     })()
@@ -273,10 +315,13 @@ export function ConversationMessagePane({
       active = false
       if (stateChannel) void client.removeChannel(stateChannel)
     }
-  }, [client, refreshAttachments, refreshMessageState, target.id, target.kind])
+  }, [client, refreshAttachments, refreshMessageState, refreshPinnedMessages, target.id, target.kind])
 
   useEffect(() => {
-    const sync = () => void syncLatestMessages().catch(() => undefined)
+    const sync = () => {
+      void syncLatestMessages().catch(() => undefined)
+      void refreshPinnedMessages().catch(() => undefined)
+    }
     const visibility = () => {
       if (document.visibilityState === 'visible') sync()
     }
@@ -286,7 +331,7 @@ export function ConversationMessagePane({
       window.removeEventListener('focus', sync)
       document.removeEventListener('visibilitychange', visibility)
     }
-  }, [syncLatestMessages])
+  }, [refreshPinnedMessages, syncLatestMessages])
 
   useEffect(() => {
     if (latestMessageId === null) return
@@ -489,6 +534,7 @@ export function ConversationMessagePane({
         ? await deleteChannelMessageAction({ channelId: target.id, messageId })
         : await deleteDmMessageAction({ dmThreadId: target.id, messageId })
       setMessages((current) => reconcileMessageChange(current, messageRecordToRealtimeRow(result)))
+      void refreshPinnedMessages().catch(() => undefined)
       if (replyToId === messageId) setReplyToId(null)
       if (editingMessageId === messageId) resetComposer()
     } catch {
@@ -512,7 +558,7 @@ export function ConversationMessagePane({
     setError(null)
     try {
       await toggleMessagePinAction({ messageId })
-      await refreshMessageState([messageId])
+      await Promise.all([refreshMessageState([messageId]), refreshPinnedMessages()])
     } catch {
       setError('고정 상태를 변경하지 못했습니다.')
     }
@@ -582,7 +628,7 @@ export function ConversationMessagePane({
 
   return (
     <section
-      className="relative flex min-h-0 flex-1 flex-col pt-3"
+      className="relative flex min-h-0 flex-1 flex-col pt-3 xl:flex-row xl:gap-5"
       onDragEnter={handleFileDragEnter}
       onDragOver={handleFileDragOver}
       onDragLeave={handleFileDragLeave}
@@ -592,10 +638,19 @@ export function ConversationMessagePane({
       data-dm-message-pane={target.kind === 'dm' ? true : undefined}
       data-realtime-status={realtimeStatus}
     >
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       {draggingFiles && !busy && editingMessageId === null ? (
         <div data-file-drop-overlay role="status" aria-live="polite" className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-2xl border-2 border-dashed border-blue-400 bg-slate-900/85 px-4 text-center text-lg font-semibold text-white shadow-xl">
           <span>📎 파일을 여기에 놓아 첨부하기</span>
         </div>
+      ) : null}
+      {pinnedMessages.length > 0 ? (
+        <details data-mobile-pinned-messages className="mb-2 shrink-0 rounded-xl border border-black/10 dark:border-white/15 xl:hidden">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-semibold">고정 메시지 {pinnedMessages.length}개</summary>
+          <div className="max-h-48 overflow-y-auto border-t border-black/10 px-3 py-2 dark:border-white/15">
+            <PinnedMessageList items={pinnedMessages} profiles={profiles} onJumpToMessage={handleJumpToMessage} onUnpin={handleTogglePin} />
+          </div>
+        </details>
       ) : null}
       {hasMore ? (
         <div className="flex shrink-0 justify-center pb-2">
@@ -611,7 +666,7 @@ export function ConversationMessagePane({
           hasMoreOlder={hasMore}
           currentUserId={currentUserId}
           isAdmin={target.kind === 'channel' && isAdmin}
-          onReply={(messageId) => { setReplyToId(messageId); setEditingMessageId(null) }}
+          onReply={(messageId) => { setReplyToId(messageId); setEditingMessageId(null); composerRef.current?.focus() }}
           onJumpToMessage={handleJumpToMessage}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -650,6 +705,7 @@ export function ConversationMessagePane({
           ) : null}
           <label className="sr-only" htmlFor="keychats-message-input">메시지 입력</label>
           <textarea
+            ref={composerRef}
             id="keychats-message-input"
             name="message"
             rows={2}
@@ -667,6 +723,16 @@ export function ConversationMessagePane({
         </form>
         {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
       </div>
+      </div>
+      <aside data-pinned-messages-panel aria-label="고정된 메시지" className="hidden w-64 shrink-0 flex-col border-l border-black/10 pl-4 dark:border-white/15 xl:flex">
+        <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold">고정된 메시지</h2>
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">{pinnedMessages.length}</span>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+          <PinnedMessageList items={pinnedMessages} profiles={profiles} onJumpToMessage={handleJumpToMessage} onUnpin={handleTogglePin} />
+        </div>
+      </aside>
     </section>
   )
 }

@@ -81,7 +81,7 @@ export default async function ChannelPage({ params }: PageProps) {
 
   return (
     <RoomThemeFrame key={channelId} target={{ kind: 'channel', id: channelId }} initial={roomTheme.initial} unavailable={roomTheme.unavailable} canChange={Boolean(memberSet.has(profile.user_id) && (isAdmin || (!channel.is_default && channel.created_by === profile.user_id)))}>
-    <div className="mx-auto flex h-dvh w-full max-w-5xl flex-col overflow-hidden px-5 py-5 md:px-8">
+    <div className="mx-auto flex h-dvh w-full max-w-5xl flex-col xl:max-w-none overflow-hidden px-5 py-5 md:px-8">
       <header className="shrink-0 flex flex-wrap items-start justify-between gap-4 border-b border-black/10 pb-4 dark:border-white/10">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">CHANNEL</p>
