@@ -27,54 +27,205 @@ select { font-family: inherit; }
 
 a { color: inherit; }
 
+/* Slate Dark & Cyber — left sidebar only.  Colors taken from the supplied
+   keychats_redesign.html; all chat panes and room themes stay unchanged. */
 [data-sidebar-root] {
-  background: #243b8f !important;
-  color: #fff0c9 !important;
-  border-color: rgb(255 240 201 / 22%) !important;
+  --kc-sidebar-bg: #0f172a;
+  --kc-sidebar-hover: #1e293b;
+  --kc-sidebar-border: #334155;
+  --kc-sidebar-text: #f8fafc;
+  --kc-sidebar-muted: #94a3b8;
+  --kc-sidebar-accent: #3b82f6;
+  background: var(--kc-sidebar-bg) !important;
+  color: var(--kc-sidebar-text) !important;
+  border-color: var(--kc-sidebar-border) !important;
+  font-family: Inter, Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  padding: 1rem !important;
 }
 
-[data-sidebar-root] [data-sidebar-active="true"] {
-  background: #1d327a !important;
-  color: #fff0c9 !important;
+/* Compact brand bar and a real KEYCHATS monogram, without adding a fake bell. */
+[data-sidebar-root] > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 4rem;
+  margin: -1rem -1rem 1rem;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid #1e293b;
+  color: #f8fafc !important;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.075em;
+}
+[data-sidebar-root] > div:first-child::before {
+  content: 'K';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(45deg, #2563eb, #6366f1);
+  box-shadow: 0 4px 12px rgb(37 99 235 / 22%);
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  color: #fff;
 }
 
-[data-sidebar-root] [data-unread-badge] {
-  background: #fff0c9 !important;
-  color: #243b8f !important;
+[data-sidebar-root] > nav {
+  padding: 0 0.125rem 0.75rem;
+  scrollbar-width: thin;
+  scrollbar-color: #475569 transparent;
+}
+[data-sidebar-root] > nav > section > div:first-child {
+  color: var(--kc-sidebar-muted) !important;
+  letter-spacing: 0.095em;
+  font-size: 0.6875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+[data-sidebar-root] > nav > section > div:first-child > span {
+  color: var(--kc-sidebar-muted) !important;
+}
+[data-sidebar-root] > nav a {
+  color: #cbd5e1 !important;
+  border-radius: 0.75rem;
+  font-weight: 500;
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+}
+[data-sidebar-root] > nav a:hover,
+[data-sidebar-root] > nav a:focus-visible {
+  background: var(--kc-sidebar-hover) !important;
+  color: var(--kc-sidebar-text) !important;
+}
+[data-sidebar-root] [data-sidebar-active='true'] {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: var(--kc-sidebar-border) !important;
+  box-shadow: inset 3px 0 0 #3b82f6, 0 2px 6px rgb(2 6 23 / 18%);
+  font-weight: 600 !important;
+}
+[data-sidebar-root] > nav a[href^='/channel/'] > span:first-child {
+  display: block;
+}
+[data-sidebar-root] > nav a[href^='/channel/'] > span:first-child::first-letter {
+  color: #60a5fa;
+  font-weight: 800;
+}
+[data-sidebar-root] > nav a[data-sidebar-active='true']:focus-visible,
+[data-sidebar-root] button:focus-visible,
+[data-sidebar-root] input:focus-visible,
+[data-sidebar-root] > a[href='/settings']:focus-visible {
+  outline: 2px solid var(--kc-sidebar-accent);
+  outline-offset: 2px;
 }
 
-/* The legacy feedback route remains only as a compatibility redirect. */
-[data-sidebar-root] a[href$="/feedback"] { display: none !important; }
-
-/* Match the channel + trigger to the community + trigger. */
+/* Preserve the working channel, DM and community controls. */
+[data-sidebar-root] [data-sidebar-popover-trigger],
 [data-sidebar-root] [data-channel-create-trigger] {
-  opacity: 1 !important;
-  color: rgb(255 240 201 / 65%) !important;
+  color: var(--kc-sidebar-muted) !important;
+  border-radius: 0.5rem;
 }
+[data-sidebar-root] [data-sidebar-popover-trigger]:hover,
 [data-sidebar-root] [data-channel-create-trigger]:hover {
-  background: rgb(255 240 201 / 10%) !important;
-  color: #fff0c9 !important;
+  color: #60a5fa !important;
+  background: #1e293b !important;
+}
+[data-sidebar-root] [data-room-notification] {
+  color: #64748b !important;
+}
+[data-sidebar-root] [data-room-notification]:hover {
+  background: #1e293b !important;
+  color: #93c5fd !important;
+}
+[data-sidebar-root] [data-unread-badge] {
+  background: #2563eb !important;
+  color: #fff !important;
+  border: 1px solid #3b82f6;
+  font-variant-numeric: tabular-nums;
+}
+[data-sidebar-root] input[name='joinCode'],
+[data-sidebar-root] input[name='communityName'] {
+  color: #f8fafc !important;
+  background: #0b1222 !important;
+  border-color: #334155 !important;
+  border-radius: 0.625rem;
+}
+[data-sidebar-root] input[name='joinCode']::placeholder,
+[data-sidebar-root] input[name='communityName']::placeholder {
+  color: #64748b !important;
+}
+[data-sidebar-root] form:has(input[name='joinCode']) > button[type='submit'] {
+  color: #fff !important;
+  background: #2563eb !important;
+  border: 1px solid #2563eb !important;
+  border-radius: 0.625rem;
+}
+[data-sidebar-root] form:has(input[name='joinCode']) > button[type='submit']:hover {
+  background: #3b82f6 !important;
 }
 
+/* Existing settings link becomes the reference sidebar's bottom profile area.
+   No synthetic "online" state is shown because presence data is unavailable. */
+[data-sidebar-root] > a[href='/settings'] {
+  flex-shrink: 0;
+  margin-top: 0.75rem;
+  padding: 0.875rem 0.5rem !important;
+  border: 0 !important;
+  border-top: 1px solid #1e293b !important;
+  border-radius: 0.75rem !important;
+  background: transparent !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+[data-sidebar-root] > a[href='/settings']:hover {
+  background: #1e293b !important;
+}
+[data-sidebar-root] > a[href='/settings'] > img {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid #334155;
+  background: #1e293b;
+}
+[data-sidebar-root] > a[href='/settings']::after {
+  content: '⚙';
+  font-size: 0.875rem;
+  color: #94a3b8;
+  margin-left: auto;
+}
+
+/* Popovers are portaled to <body>, so style them by their data markers. */
 [data-sidebar-popover],
 [data-channel-create-popover] {
-  background: #243b8f !important;
-  color: #fff0c9 !important;
-  border-color: rgb(255 240 201 / 22%) !important;
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+  box-shadow: 0 20px 40px rgb(2 6 23 / 40%);
+}
+[data-sidebar-popover] [data-selected='true'] {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #3b82f6 !important;
+}
+[data-sidebar-popover] [data-selected='false'] {
+  color: #cbd5e1 !important;
+  border-color: transparent !important;
+}
+[data-sidebar-popover] [data-selected='false']:hover {
+  background: #1e293b !important;
+}
+[data-sidebar-popover] input:not([type='checkbox']),
+[data-channel-create-popover] input:not([type='checkbox']) {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: #475569 !important;
 }
 
-[data-sidebar-popover] input:not([type="checkbox"]),
-[data-channel-create-popover] input:not([type="checkbox"]) {
-  background: #1d327a !important;
-  color: #fff0c9 !important;
-  border-color: rgb(255 240 201 / 25%) !important;
-}
-
-[data-sidebar-popover] [data-selected="true"] {
-  background: #fff0c9 !important;
-  color: #243b8f !important;
-  border-color: #fff0c9 !important;
-}
+/* Redirect-only route stays hidden in the sidebar. */
+[data-sidebar-root] a[href$='/feedback'] { display: none !important; }
 
 /* Other people's messages get a true black/white outline opposite the page theme. */
 [data-own-message="false"] > div.order-2 > div[class*="whitespace-pre-wrap"] {
