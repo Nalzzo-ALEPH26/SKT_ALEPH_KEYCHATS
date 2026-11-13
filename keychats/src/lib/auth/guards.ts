@@ -11,7 +11,7 @@ export type KeychatsProfile = {
 export type VerifiedClaims = {
   sub: string
   app_metadata?: {
-    role?: 'admin' | 'member'
+    role?: 'admin' | 'moderator' | 'member'
     [key: string]: unknown
   }
   user_metadata?: Record<string, unknown>

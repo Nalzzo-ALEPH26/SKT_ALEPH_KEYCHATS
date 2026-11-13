@@ -132,6 +132,20 @@ describe('workspace shell', () => {
     expect(memberHtml).toContain('data-sidebar-popover-trigger="new-community"')
   })
 
+  it('shows delegated content controls without account administration and renders the header logout button', () => {
+    const html = renderToStaticMarkup(createElement(AppShell, {
+      profile: { displayName: 'Moderator', avatarPath: null },
+      channels: [],
+      directMessages: [],
+      communities: [{ id: 'community-1', name: '자유게시판' }],
+      isAdmin: false,
+      isModerator: true,
+    }))
+    expect(html).toContain('data-sidebar-logout')
+    expect(html).toContain('data-sidebar-popover-trigger="community-management"')
+    expect(html).not.toContain('href="/admin"')
+  })
+
   it('marks and styles the selected workspace theme', () => {
     const html = renderToStaticMarkup(
       createElement(

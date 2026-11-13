@@ -16,9 +16,9 @@ function requiredText(formData: FormData, key: string) {
   return value
 }
 
-async function requireAdmin(client: Awaited<ReturnType<typeof createClient>>) {
+async function requireContentModerator(client: Awaited<ReturnType<typeof createClient>>) {
   const { claims } = await requireActiveUser(createAuthGuardAccess(client))
-  if (claims.app_metadata?.role !== 'admin') throw new AuthGuardError('ADMIN_REQUIRED')
+  if (claims.app_metadata?.role !== 'admin' && claims.app_metadata?.role !== 'moderator') throw new AuthGuardError('ADMIN_REQUIRED')
   return claims
 }
 
@@ -34,7 +34,7 @@ async function requireCommunityModerator(
     .maybeSingle()
   if (error) throw error
   if (!community) throw new Error('COMMUNITY_NOT_FOUND')
-  if (claims.app_metadata?.role !== 'admin' && community.created_by !== claims.sub) {
+  if (claims.app_metadata?.role !== 'admin' && claims.app_metadata?.role !== 'moderator' && community.created_by !== claims.sub) {
     throw new Error('COMMUNITY_MODERATION_FORBIDDEN')
   }
   return claims
@@ -85,7 +85,7 @@ export async function setCommunityPinnedAction(communityId: string, formData: Fo
   if (operation !== 'pin' && operation !== 'unpin') throw new Error('COMMUNITY_PIN_OPERATION_INVALID')
 
   const client = await createClient()
-  const claims = await requireAdmin(client)
+  const claims = await requireContentModerator(client)
   const { error: deleteError } = await client.from('community_pins').delete().eq('community_id', communityId)
   if (deleteError) throw deleteError
   if (operation === 'pin') {

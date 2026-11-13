@@ -44,7 +44,7 @@ export async function deleteCommunitiesAction(formData: FormData) {
 
   const client = await createClient()
   const { claims } = await requireActiveUser(createAuthGuardAccess(client))
-  if (claims.app_metadata?.role !== 'admin') {
+  if (claims.app_metadata?.role !== 'admin' && claims.app_metadata?.role !== 'moderator') {
     throw new AuthGuardError('ADMIN_REQUIRED')
   }
 

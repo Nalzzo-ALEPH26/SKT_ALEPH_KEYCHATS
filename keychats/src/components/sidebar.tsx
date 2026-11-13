@@ -42,6 +42,7 @@ import {
 } from '@/lib/sidebar/favorites'
 import type { KeychatsTheme } from '@/lib/settings/theme'
 import { createClient } from '@/lib/supabase/client'
+import { logoutAction } from '@/app/(workspace)/logout-action'
 
 type ChannelItem = {
   id: string
@@ -87,6 +88,7 @@ type SidebarProps = {
   communities?: CommunityItem[]
   theme?: KeychatsTheme
   isAdmin?: boolean
+  isModerator?: boolean
   adminPendingCount?: number
   unreadRealtimeStatus?: string
 }
@@ -346,6 +348,7 @@ export function Sidebar({
   communities = [],
   theme: _theme = 'light',
   isAdmin = false,
+  isModerator = false,
   adminPendingCount = 0,
   unreadRealtimeStatus = 'connecting',
 }: SidebarProps) {
@@ -467,8 +470,11 @@ export function Sidebar({
       data-unread-realtime-status={unreadRealtimeStatus}
       className="flex h-full w-full flex-col border-r border-[#fff0c9]/20 bg-[#243b8f] p-4 text-[#fff0c9] md:w-72"
     >
-      <div className="px-2 pb-5 pt-2 text-sm font-semibold tracking-[0.18em] text-[#fff0c9]/90">
-        KEYCHATS
+      <div className="flex items-center justify-between gap-2 px-2 pb-5 pt-2">
+        <span className="text-sm font-semibold tracking-[0.18em] text-[#fff0c9]/90">KEYCHATS</span>
+        <form action={logoutAction}>
+          <button type="submit" data-sidebar-logout aria-label="로그아웃" className="rounded-md border border-[#fff0c9]/25 px-2 py-1 text-[11px] font-semibold tracking-normal text-[#fff0c9] hover:bg-[#fff0c9]/15">로그아웃</button>
+        </form>
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto">
@@ -670,7 +676,7 @@ export function Sidebar({
           <div className={`mb-2 flex items-center justify-between px-2 text-xs font-semibold tracking-[0.14em] ${muted}`}>
             <span>COMMUNITY</span>
             <div className="flex items-center gap-1.5">
-              {isAdmin && orderedCommunities.length > 0 ? (
+              {(isAdmin || isModerator) && orderedCommunities.length > 0 ? (
                 <ViewportPopover label="커뮤니티 관리" marker="community-management" width={280} triggerClassName={smallControl}>
                   <SelectionForm
                     action={deleteCommunitiesAction}

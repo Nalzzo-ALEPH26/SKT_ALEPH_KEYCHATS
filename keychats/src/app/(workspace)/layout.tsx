@@ -5,6 +5,7 @@ import { AppShell } from '@/components/app-shell'
 import { loadAdminPendingCount } from '@/lib/admin/pending-notifications'
 import { AuthGuardError, requireActiveUser } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
+import { getCurrentAccountRole, canModerateContent } from '@/lib/auth/roles'
 import { loadCommunityUnreadCounts } from '@/lib/community/unread'
 import { buildDirectSidebarData } from '@/lib/dms/presentation'
 import { loadUnreadCounts } from '@/lib/messages/state-supabase'
@@ -26,7 +27,10 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
   }
 
   const { profile, claims } = authResult
-  const isAdmin = claims.app_metadata?.role === 'admin'
+  const role = await getCurrentAccountRole(createAdminClient(), claims.sub)
+  const isAdmin = role === 'admin'
+  const isModerator = role === 'moderator'
+  const canModerate = canModerateContent(role)
   const adminPendingCountPromise = isAdmin ? loadAdminPendingCount(createAdminClient()) : Promise.resolve(0)
 
   const [
@@ -107,7 +111,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
           name,
           unreadCount: unread.channels[id] ?? 0,
           canLeave: isMember && (createdBy !== profile.user_id || isDefault || memberCount <= 1),
-          canDelete: isAdmin && !isDefault && name.trim().toLowerCase() !== 'general',
+          canDelete: canModerate && !isDefault && name.trim().toLowerCase() !== 'general',
         }
       })}
       directMessages={direct.directMessages.map((directMessage) => ({ ...directMessage, unreadCount: unread.directMessages[directMessage.id] ?? 0 }))}
@@ -121,6 +125,7 @@ export default async function WorkspaceLayout({ children }: { children: ReactNod
       }))}
       theme={theme}
       isAdmin={isAdmin}
+      isModerator={isModerator}
       adminPendingCount={adminPendingCount}
     >
       {children}

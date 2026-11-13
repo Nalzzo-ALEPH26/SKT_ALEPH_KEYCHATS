@@ -7,6 +7,8 @@ import { ChannelMessagePane } from '@/components/channel-message-pane'
 import { MemberDialog } from '@/components/member-dialog'
 import { requireActiveUser } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
+import { canModerateContent, getCurrentAccountRole } from '@/lib/auth/roles'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { messageRecordToRealtimeRow } from '@/lib/messages/presentation'
 import { loadChannelMessages } from '@/lib/messages/service'
 import { createSupabaseMessageRepository } from '@/lib/messages/supabase'
@@ -74,7 +76,7 @@ export default async function ChannelPage({ params }: PageProps) {
   const memberSet = new Set(memberIds)
   const members = allProfiles.filter((item) => memberSet.has(item.userId))
   const candidates = allProfiles.filter((item) => !memberSet.has(item.userId))
-  const isAdmin = claims.app_metadata?.role === 'admin'
+  const isAdmin = canModerateContent(await getCurrentAccountRole(createAdminClient(), claims.sub))
   const canManage = isAdmin || channel.created_by === profile.user_id
 
   const roomTheme = await loadRoomTheme(client, { kind: 'channel', id: channelId })

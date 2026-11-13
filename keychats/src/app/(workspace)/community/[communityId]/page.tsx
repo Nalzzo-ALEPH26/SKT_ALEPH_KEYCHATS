@@ -26,7 +26,7 @@ export default async function CommunityPage({ params }: PageProps) {
   const { communityId } = await params
   const client = await createClient()
   const { claims } = await requireActiveUser(createAuthGuardAccess(client))
-  const isAdmin = claims.app_metadata?.role === 'admin'
+  const isAdmin = claims.app_metadata?.role === 'admin' || claims.app_metadata?.role === 'moderator'
 
   const [{ data: community, error: communityError }, { data: posts, error: postsError }, { data: profiles, error: profilesError }] = await Promise.all([
     client.from('communities').select('id,name,created_by,created_at').eq('id', communityId).maybeSingle(),

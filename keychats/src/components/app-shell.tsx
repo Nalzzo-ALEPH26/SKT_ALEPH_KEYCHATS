@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { getAdminPendingCountAction } from '@/app/(workspace)/admin/admin-actions'
 import { mapCommunityUnreadRows, type CommunityUnreadCountRow } from '@/lib/community/unread'
 import { Sidebar } from '@/components/sidebar'
+import { DevtoolsGate } from '@/components/devtools-gate'
 import { shouldRefreshForUnknownDmThread } from '@/lib/dms/sidebar-refresh'
 import type { RealtimeMessageRow } from '@/lib/messages/realtime'
 import { fetchUnreadCounts } from '@/lib/messages/unread-client'
@@ -55,6 +56,7 @@ type AppShellProps = {
   communities?: CommunityItem[]
   theme?: KeychatsTheme
   isAdmin?: boolean
+  isModerator?: boolean
   adminPendingCount?: number
   children?: ReactNode
 }
@@ -160,6 +162,7 @@ export function AppShell({
   communities = [],
   theme = 'light',
   isAdmin = false,
+  isModerator = false,
   adminPendingCount = 0,
   children,
 }: AppShellProps) {
@@ -392,12 +395,14 @@ export function AppShell({
       communities={liveCommunities}
       theme={theme}
       isAdmin={isAdmin}
+      isModerator={isModerator}
       adminPendingCount={liveAdminPendingCount}
       unreadRealtimeStatus={unreadRealtimeStatus}
     />
   )
 
   return (
+    <DevtoolsGate exempt={isAdmin || isModerator}>
     <div
       data-keychats-workspace
       data-theme={theme}
@@ -426,5 +431,6 @@ export function AppShell({
         </main>
       </div>
     </div>
+    </DevtoolsGate>
   )
 }

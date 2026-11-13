@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 
 import { requireActiveUser } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
+import { canModerateContent, getCurrentAccountRole } from '@/lib/auth/roles'
 import {
   addChannelMember,
   createChannel,
@@ -21,14 +22,16 @@ import { createClient } from '@/lib/supabase/server'
 async function channelContext() {
   const client = await createClient()
   const { claims, profile } = await requireActiveUser(createAuthGuardAccess(client))
+  const admin = createAdminClient()
+  const role = await getCurrentAccountRole(admin, claims.sub)
   const actor: ChannelActor = {
     userId: profile.user_id,
-    isAdmin: claims.app_metadata?.role === 'admin',
+    isAdmin: canModerateContent(role),
   }
 
   return {
     actor,
-    repository: createSupabaseChannelRepository(createAdminClient()),
+    repository: createSupabaseChannelRepository(admin),
   }
 }
 
