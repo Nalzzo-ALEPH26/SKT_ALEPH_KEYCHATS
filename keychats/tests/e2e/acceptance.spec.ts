@@ -326,7 +326,7 @@ test('delegates moderation by verified login ID, removes invite entry, and block
     users.push(adminUser)
     const member = await createUser(admin, {
       loginId: `e2e_m_${suffix}`.slice(0, 24),
-      displayName: 'Member for moderation',
+      displayName: 'Test Moderator',
     })
     users.push(member)
 
