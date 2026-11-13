@@ -28,12 +28,9 @@ describe('Keychats base path', () => {
 
   it('keeps server redirects relative to the configured base path', () => {
     const loginActions = readFileSync(resolve(process.cwd(), 'src/app/login/actions.ts'), 'utf8')
-    const inviteActions = readFileSync(
-      resolve(process.cwd(), 'src/app/invite/[token]/actions.ts'),
-      'utf8',
-    )
+    const logoutActions = readFileSync(resolve(process.cwd(), 'src/app/(workspace)/logout-action.ts'), 'utf8')
 
     expect(loginActions).not.toMatch(/redirect\(["'`]\/chats(?:[\/"'`?])/)
-    expect(inviteActions).not.toMatch(/redirect\(["'`]\/chats(?:[\/"'`?])/)
+    expect(logoutActions).not.toMatch(/redirect\(["'`]\/chats(?:[\/"'`?])/)
   })
 })

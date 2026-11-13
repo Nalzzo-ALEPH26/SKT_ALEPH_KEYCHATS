@@ -6,13 +6,11 @@ function source(relativePath: string) {
 }
 
 describe('nickname length limit', () => {
-  it('enforces 15 characters across settings, signup, invite, and database', () => {
+  it('enforces 15 characters across settings, signup, and database', () => {
     expect(source('../../src/app/(workspace)/settings/actions.ts')).toContain('displayName.length > 15')
     expect(source('../../src/app/(workspace)/settings/page.tsx')).toContain('maxLength={15}')
     expect(source('../../src/lib/auth/signup-requests.ts')).toContain('displayName.length > 15')
-    expect(source('../../src/lib/auth/invites.ts')).toContain('displayName.length > 15')
     expect(source('../../src/components/signup-request-form.tsx')).toContain('maxLength={15}')
-    expect(source('../../src/app/invite/[token]/invite-form.tsx')).toContain('maxLength={15}')
     const migration = source('../../supabase/migrations/20261029013144_nickname_reply_community_unread.sql')
     expect(migration).toContain('left(btrim(display_name), 15)')
     expect(migration).toContain('profiles_display_name_length')

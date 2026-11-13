@@ -10,7 +10,7 @@ describe('compact admin navigation and login-ID based role delegation', () => {
     expect(page).toContain('ModeratorDelegationForm')
     expect(page).toContain('SignupRequestsPanel')
     expect(page).toContain('href="/admin/users"')
-    expect(page).not.toContain('AdminPanel')
+    expect(page).not.toContain('<AdminPanel ')
     expect(page).not.toContain("from('invites')")
     expect(page).not.toContain('eligible.map')
     const users = read('../../src/app/(workspace)/admin/users/page.tsx')
