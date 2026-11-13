@@ -15,7 +15,10 @@ export function DevtoolsGate({ exempt, children }: { exempt: boolean; children: 
   useEffect(() => {
     if (exempt) return
     const check = () => {
-      setBlocked(window.matchMedia('(min-width: 768px)').matches && isLikelyDevtoolsDocked(window))
+      const desktop = typeof window.matchMedia === 'function'
+        ? window.matchMedia('(min-width: 768px)').matches
+        : window.innerWidth >= 768
+      setBlocked(desktop && isLikelyDevtoolsDocked(window))
     }
     check()
     window.addEventListener('resize', check)
