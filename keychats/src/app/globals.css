@@ -42,6 +42,21 @@ a { color: inherit; }
   padding: 1rem !important;
 }
 
+/* Squeeze-like narrow, tall wordmark: preserve the original Slate Dark & Cyber
+   brand color (#f8fafc). No global font or theme changes. */
+[data-sidebar-root] [data-keychats-wordmark] {
+  display: inline-block;
+  font-family: var(--font-squeeze), "Arial Narrow", Impact, sans-serif;
+  font-size: 1.7rem;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -0.065em;
+  color: #f8fafc !important;
+  font-stretch: condensed;
+  transform: scaleX(0.82);
+  transform-origin: left center;
+}
+
 /* Compact brand bar and a real KEYCHATS monogram, without adding a fake bell. */
 [data-sidebar-root] > div:first-child {
   display: flex;

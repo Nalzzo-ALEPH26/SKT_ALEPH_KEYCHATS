@@ -309,15 +309,13 @@ test('creates a member channel and covers attachment, reaction, pin, unread, the
   }
 })
 
-test('uses a one-time invite and immediately blocks a disabled member with an existing session', async ({ browser }) => {
+test('delegates moderation by verified login ID, removes invite entry, and blocks disabled sessions', async ({ browser, request }) => {
   const admin = createAdminClient()
   const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
   const users: TestUser[] = []
   let generalChannelId: string | null = null
-  let invitedUserId: string | null = null
   const adminContext = await browser.newContext()
   const memberContext = await browser.newContext()
-  const reuseContext = await browser.newContext()
 
   try {
     const adminUser = await createUser(admin, {
@@ -326,65 +324,61 @@ test('uses a one-time invite and immediately blocks a disabled member with an ex
       role: 'admin',
     })
     users.push(adminUser)
+    const member = await createUser(admin, {
+      loginId: `e2e_m_${suffix}`.slice(0, 24),
+      displayName: 'Member for moderation',
+    })
+    users.push(member)
 
     generalChannelId = await createChannel(admin, {
       name: 'general',
       createdBy: adminUser.userId,
-      members: [{ userId: adminUser.userId, role: 'owner' }],
+      members: [
+        { userId: adminUser.userId, role: 'owner' },
+        { userId: member.userId, role: 'member' },
+      ],
       isDefault: true,
     })
 
     const adminPage = await adminContext.newPage()
     await login(adminPage, adminUser.loginId)
     await adminPage.goto('/chats/admin')
-    await expect(adminPage.getByRole('heading', { name: '관리자' })).toBeVisible()
-    await adminPage.getByRole('button', { name: '새 초대 만들기' }).click()
+    await expect(adminPage.getByRole('heading', { name: '관리자', exact: true })).toBeVisible()
+    await expect(adminPage.getByRole('button', { name: '새 초대 만들기' })).toHaveCount(0)
+    await expect(adminPage.locator('[data-admin-user-management-link]')).toBeVisible()
+    await expect(adminPage.locator('[data-current-moderator]')).toHaveCount(0)
 
-    const inviteText = adminPage.getByText(/http:\/\/localhost:3000\/chats\/invite\//).first()
-    await expect(inviteText).toBeVisible()
-    const inviteUrl = (await inviteText.textContent())?.trim()
-    expect(inviteUrl).toBeTruthy()
+    // The deleted invitation route must no longer accept accounts, even via a direct URL.
+    const removedInvite = await request.get('/chats/invite/old-link')
+    expect(removedInvite.status()).toBe(404)
 
-    const invitedLogin = `invite_${suffix}`.slice(0, 24)
+    await adminPage.getByRole('textbox', { name: '계정 아이디' }).fill(member.loginId)
+    await adminPage.getByRole('button', { name: '계정 확인' }).click()
+    await expect(adminPage.locator('[data-moderator-candidate]')).toContainText(`@${member.loginId}`)
+    adminPage.once('dialog', (dialog) => void dialog.accept())
+    await adminPage.getByRole('button', { name: '운영 관리자로 지정' }).click()
+    await expect.poll(async () => {
+      const { data } = await admin.auth.admin.getUserById(member.userId)
+      return data.user?.app_metadata?.role
+    }).toBe('moderator')
+
+    await expect(adminPage.locator('[data-current-moderator]')).toContainText(`@${member.loginId}`)
+    adminPage.once('dialog', (dialog) => void dialog.accept())
+    await adminPage.getByRole('button', { name: '권한 해제' }).click()
+    await expect.poll(async () => {
+      const { data } = await admin.auth.admin.getUserById(member.userId)
+      return data.user?.app_metadata?.role
+    }).toBe('member')
+
     const memberPage = await memberContext.newPage()
-    await memberPage.goto(inviteUrl!)
-    await memberPage.getByLabel('아이디').fill(invitedLogin)
-    await memberPage.getByLabel('표시 이름').fill('Invited User')
-    await memberPage.getByLabel('비밀번호').fill(password)
-    await memberPage.getByRole('button', { name: '계정 만들기' }).click()
-    await expect(memberPage).toHaveURL(/\/chats\/login\?registered=1$/)
-
-    const { data: invitedProfile, error: invitedProfileError } = await admin
-      .from('profiles')
-      .select('user_id')
-      .eq('username', invitedLogin)
-      .single()
-    if (invitedProfileError || !invitedProfile) {
-      throw invitedProfileError ?? new Error('INVITED_PROFILE_MISSING')
-    }
-    invitedUserId = invitedProfile.user_id as string
-
-    await memberPage.getByLabel('아이디').fill(invitedLogin)
-    await memberPage.getByLabel('비밀번호').fill(password)
-    await memberPage.getByRole('button', { name: '로그인' }).click()
+    await login(memberPage, member.loginId)
     await expect(memberPage).toHaveURL(`http://localhost:3000/chats/channel/${generalChannelId}`)
 
-    const reusePage = await reuseContext.newPage()
-    await reusePage.goto(inviteUrl!)
-    await reusePage.getByLabel('아이디').fill(`reuse_${suffix}`.slice(0, 24))
-    await reusePage.getByLabel('표시 이름').fill('No Register')
-    await reusePage.getByLabel('비밀번호').fill(password)
-    await reusePage.getByRole('button', { name: '계정 만들기' }).click()
-    await expect(
-      reusePage.getByText('초대 링크가 유효하지 않거나 더 이상 사용할 수 없습니다.', {
-        exact: true,
-      }),
-    ).toBeVisible()
-
-    await adminPage.reload()
+    await adminPage.goto('/chats/admin/users')
+    await expect(adminPage.getByRole('heading', { name: '사용자 관리' })).toBeVisible()
     const managedRow = adminPage
       .locator('div.flex.flex-wrap.items-center.justify-between.gap-3.py-4')
-      .filter({ hasText: `@${invitedLogin}` })
+      .filter({ hasText: `@${member.loginId}` })
       .first()
     await expect(managedRow).toBeVisible()
     adminPage.once('dialog', (dialog) => void dialog.accept())
@@ -396,9 +390,7 @@ test('uses a one-time invite and immediately blocks a disabled member with an ex
   } finally {
     await adminContext.close()
     await memberContext.close()
-    await reuseContext.close()
     if (generalChannelId) await admin.from('channels').delete().eq('id', generalChannelId)
-    if (invitedUserId) await admin.auth.admin.deleteUser(invitedUserId)
     await cleanupUsers(admin, users)
   }
 })
