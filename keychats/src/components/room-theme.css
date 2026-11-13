@@ -31,3 +31,38 @@
 /* Default is deliberately transparent: original light/dark chat styles own its appearance. */
 .room-theme-frame:not([data-room-theme=default]){background:var(--rt-bg);color:var(--rt-text)}
 .room-theme-frame[data-room-theme=default]>.rt-content{background:transparent;color:inherit}
+
+/* Pinned messages belong to the conversation palette, not the global light/dark UI.
+   Keep the default room unchanged; custom room themes override dark:* utilities. */
+.room-theme-frame:not([data-room-theme=default]) [data-mobile-pinned-messages],
+.room-theme-frame:not([data-room-theme=default]) [data-pinned-messages-panel] {
+  background:var(--rt-bg);
+  color:var(--rt-text);
+  border-color:var(--rt-border);
+}
+.room-theme-frame:not([data-room-theme=default]) [data-mobile-pinned-messages] > summary,
+.room-theme-frame:not([data-room-theme=default]) [data-pinned-messages-panel] h2 {
+  color:var(--rt-text);
+}
+.room-theme-frame:not([data-room-theme=default]) [data-mobile-pinned-messages] > div {
+  border-color:var(--rt-border);
+}
+.room-theme-frame:not([data-room-theme=default]) [data-pinned-messages-panel] > div > span {
+  background:var(--rt-surface);
+  color:var(--rt-muted);
+}
+.room-theme-frame:not([data-room-theme=default]) [data-pinned-message-list] > li {
+  background:var(--rt-surface);
+  color:var(--rt-text);
+  border-color:var(--rt-border);
+}
+.room-theme-frame:not([data-room-theme=default]) [data-pinned-message-list] [data-pinned-sender] {
+  color:var(--rt-text);
+}
+.room-theme-frame:not([data-room-theme=default]) [data-pinned-message-list] [data-pinned-body],
+.room-theme-frame:not([data-room-theme=default]) [data-pinned-message-list] [data-unpin-message] {
+  color:var(--rt-muted);
+}
+.room-theme-frame:not([data-room-theme=default]) [data-pinned-message-list] [data-unpin-message]:hover {
+  color:var(--rt-accent);
+}

@@ -14,17 +14,26 @@ export function DevtoolsGate({ exempt, children }: { exempt: boolean; children: 
 
   useEffect(() => {
     if (exempt) return
-    const check = () => {
-      const desktop = typeof window.matchMedia === 'function'
-        ? window.matchMedia('(min-width: 768px)').matches
-        : window.innerWidth >= 768
-      setBlocked(desktop && isLikelyDevtoolsDocked(window))
+    // Screen width stays stable when a docked DevTools pane shrinks the viewport.
+    // Checking the *inner* width here misses DevTools opened on a 768px+ desktop.
+    const desktop = window.screen.width >= 768 && (typeof window.matchMedia !== 'function' || window.matchMedia('(hover: hover) and (pointer: fine)').matches)
+    const check = () => setBlocked(desktop && isLikelyDevtoolsDocked(window))
+    const onShortcut = (event: KeyboardEvent) => {
+      if (!desktop) return
+      const inspector = event.key === 'F12' || (event.ctrlKey && event.shiftKey && ['i', 'j', 'c'].includes(event.key.toLowerCase())) || (event.metaKey && event.altKey && ['i', 'j', 'c'].includes(event.key.toLowerCase()))
+      if (inspector) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        check()
+      }
     }
     check()
+    window.addEventListener('keydown', onShortcut, true)
     window.addEventListener('resize', check)
     window.addEventListener('focus', check)
     const timer = window.setInterval(check, 650)
     return () => {
+      window.removeEventListener('keydown', onShortcut, true)
       window.removeEventListener('resize', check)
       window.removeEventListener('focus', check)
       window.clearInterval(timer)

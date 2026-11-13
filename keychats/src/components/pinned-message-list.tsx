@@ -36,8 +36,8 @@ export function PinnedMessageList({ items, profiles, onJumpToMessage, onUnpin }:
               className="block w-full min-w-0 text-left"
               aria-label={`${sender}의 고정 메시지로 이동`}
             >
-              <span className="block truncate text-xs font-semibold">{sender}</span>
-              <span className="mt-1 block whitespace-pre-wrap break-words text-xs leading-5 text-zinc-600 line-clamp-3 dark:text-zinc-300">
+              <span data-pinned-sender className="block truncate text-xs font-semibold">{sender}</span>
+              <span data-pinned-body className="mt-1 block whitespace-pre-wrap break-words text-xs leading-5 text-zinc-600 line-clamp-3 dark:text-zinc-300">
                 {item.body?.trim() || '첨부파일 메시지'}
               </span>
             </button>
