@@ -54,7 +54,7 @@ export default async function AdminPage() {
         <h1 className="mt-2 text-2xl font-semibold">관리자</h1>
       </div>
       <section className="mb-6 rounded-2xl border border-black/10 p-5 dark:border-white/10">
-        <h2 className="font-semibold">운영 관리자 권한</h2>
+        <h2 className="font-semibold">운영 권한 위임</h2>
         <p className="mt-1 text-sm text-zinc-500">운영 관리자는 채널과 커뮤니티만 관리하며 가입·비밀번호·계정 관리에는 접근할 수 없습니다. 한 명만 지정할 수 있습니다.</p>
         <div className="mt-4 divide-y divide-black/10 dark:divide-white/10">
           {eligible.map((user) => {
