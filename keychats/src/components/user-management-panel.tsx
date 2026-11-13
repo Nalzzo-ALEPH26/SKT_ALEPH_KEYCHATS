@@ -81,7 +81,7 @@ export function UserManagementPanel({ initialUsers }: { initialUsers: ManagedUse
       ) : null}
 
       <section className="rounded-2xl border border-black/10 p-5 dark:border-white/10">
-        <h2 className="font-semibold">사용자 관리</h2>
+        <h2 className="font-semibold">계정 목록</h2>
         <p className="mt-1 text-sm text-zinc-500">계정 삭제 시 로그인은 제거되며 과거 메시지는 유지됩니다.</p>
         {temporaryPassword ? (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
