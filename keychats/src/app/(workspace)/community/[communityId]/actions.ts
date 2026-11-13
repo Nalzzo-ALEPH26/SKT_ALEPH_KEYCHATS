@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 
 import { AuthGuardError, requireActiveUser } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
+import { getCurrentAccountRole, canModerateContent } from '@/lib/auth/roles'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 function communityPath(communityId: string) {
@@ -70,11 +72,14 @@ export async function renameCommunityAction(communityId: string, formData: FormD
 
   const client = await createClient()
   const { claims } = await requireActiveUser(createAuthGuardAccess(client))
-  const { error } = await client
+  const admin = createAdminClient()
+  const canModerate = canModerateContent(await getCurrentAccountRole(admin, claims.sub))
+  let query = (canModerate ? admin : client)
     .from('communities')
     .update({ name, updated_at: new Date().toISOString() })
     .eq('id', communityId)
-    .eq('created_by', claims.sub)
+  if (!canModerate) query = query.eq('created_by', claims.sub)
+  const { error } = await query
   if (error) throw error
   revalidatePath(communityPath(communityId))
   revalidatePath('/', 'layout')

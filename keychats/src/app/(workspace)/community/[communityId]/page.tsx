@@ -70,7 +70,7 @@ export default async function CommunityPage({ params }: PageProps) {
   const profileById = new Map((profiles ?? []).map((profile) => [profile.user_id as string, { displayName: profile.display_name as string, username: profile.username as string }]))
   const creator = profileById.get(community.created_by as string)
   const isCreator = community.created_by === claims.sub
-  const canRename = isCreator
+  const canRename = isAdmin || isCreator
   const canPinPosts = isAdmin || isCreator
   const canPinComments = isAdmin || isCreator
 
