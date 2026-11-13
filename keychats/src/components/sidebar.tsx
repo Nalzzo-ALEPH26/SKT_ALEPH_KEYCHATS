@@ -470,9 +470,11 @@ export function Sidebar({
       data-unread-realtime-status={unreadRealtimeStatus}
       className="flex h-full w-full flex-col border-r border-[#fff0c9]/20 bg-[#243b8f] p-4 text-[#fff0c9] md:w-72"
     >
-      <div className="flex items-center justify-between gap-2 px-2 pb-5 pt-2">
-        <span className="text-sm font-semibold tracking-[0.18em] text-[#fff0c9]/90">KEYCHATS</span>
-        <form action={logoutAction}>
+      <div className="relative">
+        <div className="px-2 pb-5 pt-2 text-sm font-semibold tracking-[0.18em] text-[#fff0c9]/90">
+          KEYCHATS
+        </div>
+        <form action={logoutAction} className="absolute right-2 top-1">
           <button type="submit" data-sidebar-logout aria-label="로그아웃" className="rounded-md border border-[#fff0c9]/25 px-2 py-1 text-[11px] font-semibold tracking-normal text-[#fff0c9] hover:bg-[#fff0c9]/15">로그아웃</button>
         </form>
       </div>
