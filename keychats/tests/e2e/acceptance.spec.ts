@@ -144,8 +144,6 @@ async function waitForLiveAttachment(admin: SupabaseClient, messageId: number, e
 }
 
 test('creates a member channel and covers attachment, reaction, pin, unread, theme and mobile drawer', async ({ browser }) => {
-  // Includes two real uploads and an intentional failure/retry scenario.
-  test.setTimeout(90_000)
   const admin = createAdminClient()
   const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
   const users: TestUser[] = []
@@ -261,57 +259,6 @@ test('creates a member channel and covers attachment, reaction, pin, unread, the
     )
     expect(attachmentResponse.status()).toBe(200)
     expect(await attachmentResponse.text()).toBe('keychats acceptance attachment')
-
-    // Regression: the real local Storage bucket must accept multipart Markdown.
-    const markdownContent = '# KEYCHATS Markdown attachment\nThis is a regression test.\n'
-    const markdownBody = `markdown-${Date.now()}`
-    await firstPage.locator('input[type="file"][multiple]').setInputFiles({
-      name: 'README.md',
-      mimeType: 'text/markdown',
-      buffer: Buffer.from(markdownContent),
-    })
-    await expect(firstPage.locator('[data-selected-attachments]')).toContainText('README.md')
-    await firstPage.getByLabel('메시지 입력').fill(markdownBody)
-    await firstPage.locator('[data-send-message]').click()
-    const markdownArticle = firstPage.locator('article').filter({ hasText: markdownBody }).first()
-    await expect(markdownArticle).toBeVisible({ timeout: 10_000 })
-    const markdownMessageId = Number(await markdownArticle.getAttribute('data-message-id'))
-    await waitForLiveAttachment(admin, markdownMessageId, markdownBody)
-    const markdownLink = markdownArticle.getByRole('link', { name: /README\.md/ })
-    await expect(markdownLink).toBeVisible({ timeout: 10_000 })
-    const markdownHref = await markdownLink.getAttribute('href')
-    expect(markdownHref).toBeTruthy()
-    const markdownResponse = await secondContext.request.get(new URL(markdownHref!, secondPage.url()).toString())
-    expect(markdownResponse.status()).toBe(200)
-    expect(await markdownResponse.text()).toBe(markdownContent)
-
-    // A failed attachment must not soft-delete text that was already sent.
-    await firstPage.route('**/storage/v1/object/chat-attachments/**', async (route) => {
-      if (route.request().method() !== 'POST') return route.continue()
-      await route.fulfill({
-        status: 400,
-        contentType: 'application/json',
-        body: JSON.stringify({ statusCode: '400', error: 'Bad Request', message: 'Simulated upload failure' }),
-      })
-    })
-    const failedUploadBody = `text-survives-upload-error-${Date.now()}`
-    await firstPage.locator('input[type="file"][multiple]').setInputFiles({
-      name: 'failure.md',
-      mimeType: 'text/markdown',
-      buffer: Buffer.from('# retry me\n'),
-    })
-    await firstPage.getByLabel('메시지 입력').fill(failedUploadBody)
-    await firstPage.locator('[data-send-message]').click()
-    await expect(firstPage.getByText('메시지는 전송됐지만 첨부파일 업로드에 실패했습니다. 파일만 다시 전송해 주세요.')).toBeVisible()
-    const survivedArticle = firstPage.locator('article').filter({ hasText: failedUploadBody }).first()
-    await expect(survivedArticle).toBeVisible()
-    const survivedId = Number(await survivedArticle.getAttribute('data-message-id'))
-    await expect.poll(async () => {
-      const { data } = await admin.from('messages').select('deleted_at').eq('id', survivedId).single()
-      return data?.deleted_at ?? null
-    }).toBeNull()
-    await firstPage.unroute('**/storage/v1/object/chat-attachments/**')
-    await firstPage.locator('[data-clear-selected-attachments]').click()
 
     await secondPage.goto('/chats/settings')
 
@@ -444,6 +391,88 @@ test('delegates moderation by verified login ID, removes invite entry, and block
     await adminContext.close()
     await memberContext.close()
     if (generalChannelId) await admin.from('channels').delete().eq('id', generalChannelId)
+    await cleanupUsers(admin, users)
+  }
+})
+
+test('uploads Markdown and preserves sent text when an attachment fails', async ({ browser }) => {
+  test.setTimeout(60_000)
+  const admin = createAdminClient()
+  const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const users: TestUser[] = []
+  let channelId: string | null = null
+  const context = await browser.newContext()
+
+  try {
+    const user = await createUser(admin, {
+      loginId: `md_a_${suffix}`.slice(0, 24),
+      displayName: 'Markdown Sender',
+    })
+    users.push(user)
+    channelId = await createChannel(admin, {
+      name: `markdown-${suffix}`.slice(0, 80),
+      createdBy: user.userId,
+      members: [{ userId: user.userId, role: 'owner' }],
+    })
+
+    const page = await context.newPage()
+    await login(page, user.loginId)
+    await page.goto(`/chats/channel/${channelId}`)
+    await expect(page.locator('[data-channel-message-pane]')).toHaveAttribute('data-realtime-status', 'ready', { timeout: 12_000 })
+
+    await test.step('Markdown multipart upload and authenticated download', async () => {
+      const content = '# KEYCHATS Markdown attachment\nRegression test.\n'
+      const body = `markdown-${Date.now()}`
+      await page.locator('input[type="file"][multiple]').setInputFiles({
+        name: 'README.md',
+        mimeType: 'text/markdown',
+        buffer: Buffer.from(content),
+      })
+      await expect(page.locator('[data-selected-attachments]')).toContainText('README.md')
+      await page.getByLabel('메시지 입력').fill(body)
+      await page.locator('[data-send-message]').click()
+      const article = page.locator('article').filter({ hasText: body }).first()
+      await expect(article).toBeVisible({ timeout: 10_000 })
+      const messageId = Number(await article.getAttribute('data-message-id'))
+      await waitForLiveAttachment(admin, messageId, body)
+      const link = article.getByRole('link', { name: /README\.md/ })
+      await expect(link).toBeVisible({ timeout: 10_000 })
+      const href = await link.getAttribute('href')
+      expect(href).toBeTruthy()
+      const response = await context.request.get(new URL(href!, page.url()).toString())
+      expect(response.status()).toBe(200)
+      expect(await response.text()).toBe(content)
+    })
+
+    await test.step('failed upload does not delete already-sent text', async () => {
+      await page.route('**/storage/v1/object/chat-attachments/**', async (route) => {
+        if (route.request().method() !== 'POST') return route.continue()
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ statusCode: '400', error: 'Bad Request', message: 'Simulated upload failure' }),
+        })
+      })
+      const body = `text-survives-upload-error-${Date.now()}`
+      await page.locator('input[type="file"][multiple]').setInputFiles({
+        name: 'failure.md',
+        mimeType: 'text/markdown',
+        buffer: Buffer.from('# retry me\n'),
+      })
+      await page.getByLabel('메시지 입력').fill(body)
+      await page.locator('[data-send-message]').click()
+      await expect(page.getByText('메시지는 전송됐지만 첨부파일 업로드에 실패했습니다. 파일만 다시 전송해 주세요.')).toBeVisible({ timeout: 10_000 })
+      const article = page.locator('article').filter({ hasText: body }).first()
+      await expect(article).toBeVisible({ timeout: 10_000 })
+      const messageId = Number(await article.getAttribute('data-message-id'))
+      await expect.poll(async () => {
+        const { data } = await admin.from('messages').select('deleted_at').eq('id', messageId).single()
+        return data?.deleted_at ?? null
+      }).toBeNull()
+    })
+  } finally {
+    await context.close()
+    if (channelId) await admin.from('channels').delete().eq('id', channelId)
     await cleanupUsers(admin, users)
   }
 })
