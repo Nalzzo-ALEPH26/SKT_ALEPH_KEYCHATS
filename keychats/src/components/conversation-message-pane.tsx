@@ -723,7 +723,7 @@ export function ConversationMessagePane({
             placeholder="메시지를 입력하세요 · Shift+Enter 줄바꿈"
             className="min-h-12 flex-1 resize-none rounded-2xl border border-black bg-white px-4 py-3 text-sm text-black outline-none focus:ring-2 focus:ring-black/10 dark:border-white/30 dark:bg-zinc-950 dark:text-white dark:focus:ring-white/10"
           />
-          <button type="submit" data-send-message disabled={busy || (draft.trim().length === 0 && selectedFiles.length === 0)} className="h-12 rounded-2xl bg-zinc-950 px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-zinc-950">
+          <button type="submit" data-send-message disabled={busy || (draft.trim().length === 0 && selectedFiles.length === 0)} title={busy ? '전송 중입니다' : draft.trim().length === 0 && selectedFiles.length === 0 ? '메시지를 입력하거나 파일을 첨부하세요' : '전송'} className="h-12 rounded-2xl bg-zinc-950 px-5 text-sm font-semibold text-white disabled:cursor-default disabled:opacity-40 dark:bg-white dark:text-zinc-950">
             {editingMessageId ? '수정' : busy ? '전송 중…' : '전송'}
           </button>
         </form>

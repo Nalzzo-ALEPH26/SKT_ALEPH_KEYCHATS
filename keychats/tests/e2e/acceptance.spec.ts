@@ -422,26 +422,36 @@ test('uploads Markdown and preserves sent text when an attachment fails', async 
 
     await test.step('Markdown multipart upload and authenticated download', async () => {
       const content = '# KEYCHATS Markdown attachment\nRegression test.\n'
+      const originalName = '02_최종검증요약.md'
       const body = `markdown-${Date.now()}`
       await page.locator('input[type="file"][multiple]').setInputFiles({
-        name: 'README.md',
+        name: originalName,
         mimeType: 'text/markdown',
         buffer: Buffer.from(content),
       })
-      await expect(page.locator('[data-selected-attachments]')).toContainText('README.md')
+      await expect(page.locator('[data-selected-attachments]')).toContainText(originalName)
       await page.getByLabel('메시지 입력').fill(body)
       await page.locator('[data-send-message]').click()
       const article = page.locator('article').filter({ hasText: body }).first()
       await expect(article).toBeVisible({ timeout: 10_000 })
       const messageId = Number(await article.getAttribute('data-message-id'))
       await waitForLiveAttachment(admin, messageId, body)
-      const link = article.getByRole('link', { name: /README\.md/ })
-      await expect(link).toBeVisible({ timeout: 10_000 })
+      const link = article.locator('[data-message-attachments] a')
+      await expect(link).toContainText(originalName, { timeout: 10_000 })
       const href = await link.getAttribute('href')
       expect(href).toBeTruthy()
       const response = await context.request.get(new URL(href!, page.url()).toString())
       expect(response.status()).toBe(200)
+      expect(response.headers()['content-disposition']).toMatch(/attachment/i)
       expect(await response.text()).toBe(content)
+      const downloadPromise = page.waitForEvent('download')
+      await link.click()
+      const download = await downloadPromise
+      expect(download.suggestedFilename()).toBe(originalName)
+      expect(await download.failure()).toBeNull()
+      await expect(page.locator('[data-send-message]')).toBeDisabled()
+      await expect(page.locator('[data-send-message]')).toHaveText('전송')
+      await expect(page.locator('[data-send-message]')).toHaveAttribute('title', '메시지를 입력하거나 파일을 첨부하세요')
     })
 
     await test.step('failed upload does not delete already-sent text', async () => {

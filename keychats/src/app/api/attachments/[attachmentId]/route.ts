@@ -23,7 +23,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
   const { data: attachment, error } = await client
     .from('attachments')
-    .select('storage_path')
+    .select('storage_path,original_name')
     .eq('id', attachmentId)
     .maybeSingle()
 
@@ -32,7 +32,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
   const { data, error: signedUrlError } = await client.storage
     .from('chat-attachments')
-    .createSignedUrl(attachment.storage_path as string, 60)
+    .createSignedUrl(attachment.storage_path as string, 60, {
+      download: attachment.original_name as string,
+    })
 
   if (signedUrlError || !data?.signedUrl) {
     return new NextResponse(null, { status: 404 })
