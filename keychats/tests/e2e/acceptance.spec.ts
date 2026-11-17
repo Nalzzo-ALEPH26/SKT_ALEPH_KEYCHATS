@@ -144,6 +144,8 @@ async function waitForLiveAttachment(admin: SupabaseClient, messageId: number, e
 }
 
 test('creates a member channel and covers attachment, reaction, pin, unread, theme and mobile drawer', async ({ browser }) => {
+  // Includes two real uploads and an intentional failure/retry scenario.
+  test.setTimeout(90_000)
   const admin = createAdminClient()
   const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
   const users: TestUser[] = []
