@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-import { validateAttachmentFile } from '@/lib/files/validation'
+import { attachmentContentType, validateAttachmentFile } from '@/lib/files/validation'
 
 export type AttachmentMetadata = {
   id: string
@@ -76,11 +76,12 @@ export async function uploadMessageAttachments(
 
     for (const file of input.files) {
       const extension = extensionOf(file.name)
+      const contentType = attachmentContentType(file)
       const path = `${input.userId}/${crypto.randomUUID()}.${extension}`
       const { error: uploadError } = await client.storage
         .from('chat-attachments')
         .upload(path, file, {
-          contentType: file.type,
+          contentType,
           upsert: false,
         })
 
@@ -91,7 +92,7 @@ export async function uploadMessageAttachments(
         uploader_id: input.userId,
         storage_path: path,
         original_name: file.name,
-        mime_type: file.type,
+        mime_type: contentType,
         size_bytes: file.size,
       })
     }

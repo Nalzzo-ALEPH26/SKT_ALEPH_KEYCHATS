@@ -100,6 +100,7 @@ const FILE_ACCEPT = [
   'application/pdf',
   'application/zip',
   'text/plain',
+  '.md',
   '.docx',
   '.xlsx',
   '.pptx',

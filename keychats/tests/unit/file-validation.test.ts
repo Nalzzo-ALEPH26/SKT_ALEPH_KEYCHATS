@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   MAX_ATTACHMENT_BYTES,
+  attachmentContentType,
   validateAttachmentFile,
 } from '@/lib/files/validation'
 
@@ -30,6 +31,11 @@ describe('attachment validation', () => {
     ['document.pdf', 'application/pdf'],
     ['archive.zip', 'application/zip'],
     ['notes.txt', 'text/plain'],
+    ['readme.md', 'text/markdown'],
+    ['readme.md', 'text/x-markdown'],
+    ['readme.md', 'text/plain'],
+    ['readme.md', ''],
+    ['README.MD', 'text/markdown'],
     [
       'document.docx',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -57,6 +63,24 @@ describe('attachment validation', () => {
     ['page.html', 'text/html'],
   ])('rejects executable or script file %s', (name, type) => {
     expect(validateAttachmentFile(file(name, type, 1024))).toEqual({
+      ok: false,
+      code: 'FILE_TYPE_BLOCKED',
+    })
+  })
+
+  it('uploads Markdown as plain text to the existing private storage bucket', () => {
+    expect(attachmentContentType(file('readme.md', 'text/markdown', 1024))).toBe('text/plain')
+    expect(attachmentContentType(file('README.MD', '', 1024))).toBe('text/plain')
+    expect(attachmentContentType(file('notes.txt', 'text/plain', 1024))).toBe('text/plain')
+    expect(attachmentContentType(file('photo.png', 'image/png', 1024))).toBe('image/png')
+  })
+
+  it('rejects a Markdown file with a mismatched or blocked MIME type', () => {
+    expect(validateAttachmentFile(file('readme.md', 'application/pdf', 1024))).toEqual({
+      ok: false,
+      code: 'FILE_TYPE_MISMATCH',
+    })
+    expect(validateAttachmentFile(file('readme.md', 'text/html', 1024))).toEqual({
       ok: false,
       code: 'FILE_TYPE_BLOCKED',
     })

@@ -22,6 +22,7 @@ const MIME_BY_EXTENSION: Record<string, ReadonlySet<string>> = {
   pdf: new Set(['application/pdf']),
   zip: new Set(['application/zip', 'application/x-zip-compressed']),
   txt: new Set(['text/plain']),
+  md: new Set(['text/markdown', 'text/x-markdown', 'text/plain', '']),
   docx: new Set([
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ]),
@@ -72,6 +73,12 @@ function extensionOf(name: string) {
   const normalized = name.trim().toLowerCase()
   const index = normalized.lastIndexOf('.')
   return index > -1 ? normalized.slice(index + 1) : ''
+}
+
+// Markdown is a text format. Store it as text/plain so the existing private
+// storage bucket accepts it without expanding MIME permissions or rendering HTML.
+export function attachmentContentType(file: AttachmentFileLike): string {
+  return extensionOf(file.name) === 'md' ? 'text/plain' : file.type
 }
 
 export function validateAttachmentFile(file: AttachmentFileLike): ValidationResult {

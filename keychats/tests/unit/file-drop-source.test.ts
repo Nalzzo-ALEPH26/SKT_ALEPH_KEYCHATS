@@ -11,6 +11,10 @@ describe('conversation file drag and drop', () => {
     expect(source).toContain('validateAttachmentFile(file)')
   })
 
+  it('offers Markdown files in the file picker', () => {
+    expect(source).toContain("'.md'")
+  })
+
   it('blocks file navigation, displays a drop target, and rejects drops while editing or sending', () => {
     expect(source).toContain("window.addEventListener('drop', blockFileNavigation)")
     expect(source).toContain('data-file-drop-overlay')
