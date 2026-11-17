@@ -443,6 +443,8 @@ test('uploads Markdown and preserves sent text when an attachment fails', async 
       const response = await context.request.get(new URL(href!, page.url()).toString())
       expect(response.status()).toBe(200)
       expect(response.headers()['content-disposition']).toMatch(/attachment/i)
+      expect(response.headers()['content-disposition']).toContain("filename*=UTF-8''")
+      expect(response.headers()['cache-control']).toContain('no-store')
       expect(await response.text()).toBe(content)
       const downloadPromise = page.waitForEvent('download')
       await link.click()

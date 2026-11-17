@@ -175,7 +175,7 @@ export function MessageItem({
               return isImage ? (
                 <MessageImageLightbox key={attachment.id} href={href} originalName={attachment.originalName} />
               ) : (
-                <a key={attachment.id} href={href} download={attachment.originalName} className="flex items-center justify-between gap-4 rounded-xl border border-black/10 px-3 py-2 text-sm hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5">
+                <a key={attachment.id} href={`${href}?download=1`} download={attachment.originalName} className="flex items-center justify-between gap-4 rounded-xl border border-black/10 px-3 py-2 text-sm hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5">
                   <span className="min-w-0 truncate">{attachment.originalName}</span>
                   <span className="shrink-0 text-xs text-zinc-500">{formatBytes(attachment.sizeBytes)}</span>
                 </a>
