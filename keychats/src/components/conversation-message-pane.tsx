@@ -488,10 +488,13 @@ export function ConversationMessagePane({
 
       if (outgoingEditId) resetComposer()
     } catch {
-      if (!outgoingEditId && draft.length === 0) setDraft(outgoingDraft)
+      // A successful text message must not be deleted just because its file
+      // upload failed. Only roll back a file-only placeholder message.
+      const textWasSent = !outgoingEditId && createdMessageId !== null && outgoingDraft.trim().length > 0
+      if (!outgoingEditId && !textWasSent && draft.length === 0) setDraft(outgoingDraft)
       if (!outgoingEditId && selectedFiles.length === 0) setSelectedFiles(outgoingFiles)
-      if (!outgoingEditId && replyToId === null) setReplyToId(outgoingReplyId)
-      if (!outgoingEditId && createdMessageId !== null) {
+      if (!outgoingEditId && !textWasSent && replyToId === null) setReplyToId(outgoingReplyId)
+      if (!outgoingEditId && createdMessageId !== null && !textWasSent) {
         try {
           const deleted = target.kind === 'channel'
             ? await deleteChannelMessageAction({ channelId: target.id, messageId: createdMessageId })
@@ -501,7 +504,9 @@ export function ConversationMessagePane({
           // RLS keeps incomplete attachment state private.
         }
       }
-      setError('메시지 또는 파일을 처리하지 못했습니다. 다시 시도해 주세요.')
+      setError(textWasSent
+        ? '메시지는 전송됐지만 첨부파일 업로드에 실패했습니다. 파일만 다시 전송해 주세요.'
+        : '메시지 또는 파일을 처리하지 못했습니다. 다시 시도해 주세요.')
     } finally {
       setBusy(false)
     }

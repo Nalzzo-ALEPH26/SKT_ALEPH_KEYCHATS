@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(8);
+select plan(9);
 
 select ok(
   exists (
@@ -22,6 +22,15 @@ select ok(
       and file_size_limit = 10485760
   ),
   'chat attachments bucket is private with a 10 MiB limit'
+);
+
+select ok(
+  exists (
+    select 1 from storage.buckets
+    where id = 'chat-attachments'
+      and 'text/markdown' = any(allowed_mime_types)
+  ),
+  'chat attachments accept Markdown MIME without changing bucket privacy'
 );
 
 select ok(

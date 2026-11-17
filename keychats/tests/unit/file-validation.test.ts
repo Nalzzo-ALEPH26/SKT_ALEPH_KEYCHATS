@@ -68,9 +68,10 @@ describe('attachment validation', () => {
     })
   })
 
-  it('uploads Markdown as plain text to the existing private storage bucket', () => {
-    expect(attachmentContentType(file('readme.md', 'text/markdown', 1024))).toBe('text/plain')
-    expect(attachmentContentType(file('README.MD', '', 1024))).toBe('text/plain')
+  it('uploads Markdown using its explicitly allowed MIME type', () => {
+    expect(attachmentContentType(file('readme.md', 'text/markdown', 1024))).toBe('text/markdown')
+    expect(attachmentContentType(file('README.MD', '', 1024))).toBe('text/markdown')
+    expect(attachmentContentType(file('readme.md', 'text/plain', 1024))).toBe('text/markdown')
     expect(attachmentContentType(file('notes.txt', 'text/plain', 1024))).toBe('text/plain')
     expect(attachmentContentType(file('photo.png', 'image/png', 1024))).toBe('image/png')
   })

@@ -75,10 +75,10 @@ function extensionOf(name: string) {
   return index > -1 ? normalized.slice(index + 1) : ''
 }
 
-// Markdown is a text format. Store it as text/plain so the existing private
-// storage bucket accepts it without expanding MIME permissions or rendering HTML.
+// Normalize the different MIME types browsers assign to Markdown files.
+// The private chat-attachments bucket explicitly allows text/markdown.
 export function attachmentContentType(file: AttachmentFileLike): string {
-  return extensionOf(file.name) === 'md' ? 'text/plain' : file.type
+  return extensionOf(file.name) === 'md' ? 'text/markdown' : file.type
 }
 
 export function validateAttachmentFile(file: AttachmentFileLike): ValidationResult {

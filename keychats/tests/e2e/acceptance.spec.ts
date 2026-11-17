@@ -260,6 +260,57 @@ test('creates a member channel and covers attachment, reaction, pin, unread, the
     expect(attachmentResponse.status()).toBe(200)
     expect(await attachmentResponse.text()).toBe('keychats acceptance attachment')
 
+    // Regression: the real local Storage bucket must accept multipart Markdown.
+    const markdownContent = '# KEYCHATS Markdown attachment\nThis is a regression test.\n'
+    const markdownBody = `markdown-${Date.now()}`
+    await firstPage.locator('input[type="file"][multiple]').setInputFiles({
+      name: 'README.md',
+      mimeType: 'text/markdown',
+      buffer: Buffer.from(markdownContent),
+    })
+    await expect(firstPage.locator('[data-selected-attachments]')).toContainText('README.md')
+    await firstPage.getByLabel('메시지 입력').fill(markdownBody)
+    await firstPage.locator('[data-send-message]').click()
+    const markdownArticle = firstPage.locator('article').filter({ hasText: markdownBody }).first()
+    await expect(markdownArticle).toBeVisible({ timeout: 10_000 })
+    const markdownMessageId = Number(await markdownArticle.getAttribute('data-message-id'))
+    await waitForLiveAttachment(admin, markdownMessageId, markdownBody)
+    const markdownLink = markdownArticle.getByRole('link', { name: /README\.md/ })
+    await expect(markdownLink).toBeVisible({ timeout: 10_000 })
+    const markdownHref = await markdownLink.getAttribute('href')
+    expect(markdownHref).toBeTruthy()
+    const markdownResponse = await secondContext.request.get(new URL(markdownHref!, secondPage.url()).toString())
+    expect(markdownResponse.status()).toBe(200)
+    expect(await markdownResponse.text()).toBe(markdownContent)
+
+    // A failed attachment must not soft-delete text that was already sent.
+    await firstPage.route('**/storage/v1/object/chat-attachments/**', async (route) => {
+      if (route.request().method() !== 'POST') return route.continue()
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ statusCode: '400', error: 'Bad Request', message: 'Simulated upload failure' }),
+      })
+    })
+    const failedUploadBody = `text-survives-upload-error-${Date.now()}`
+    await firstPage.locator('input[type="file"][multiple]').setInputFiles({
+      name: 'failure.md',
+      mimeType: 'text/markdown',
+      buffer: Buffer.from('# retry me\n'),
+    })
+    await firstPage.getByLabel('메시지 입력').fill(failedUploadBody)
+    await firstPage.locator('[data-send-message]').click()
+    await expect(firstPage.getByText('메시지는 전송됐지만 첨부파일 업로드에 실패했습니다. 파일만 다시 전송해 주세요.')).toBeVisible()
+    const survivedArticle = firstPage.locator('article').filter({ hasText: failedUploadBody }).first()
+    await expect(survivedArticle).toBeVisible()
+    const survivedId = Number(await survivedArticle.getAttribute('data-message-id'))
+    await expect.poll(async () => {
+      const { data } = await admin.from('messages').select('deleted_at').eq('id', survivedId).single()
+      return data?.deleted_at ?? null
+    }).toBeNull()
+    await firstPage.unroute('**/storage/v1/object/chat-attachments/**')
+    await firstPage.locator('[data-clear-selected-attachments]').click()
+
     await secondPage.goto('/chats/settings')
 
     const unreadMessage = `unread-${Date.now()}`

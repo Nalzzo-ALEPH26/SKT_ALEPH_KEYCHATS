@@ -77,10 +77,15 @@ export async function uploadMessageAttachments(
     for (const file of input.files) {
       const extension = extensionOf(file.name)
       const contentType = attachmentContentType(file)
+      // Supabase uploads File objects as multipart form data. Normalize the File's
+      // own MIME type too, not just the contentType option, to match the bucket.
+      const uploadFile = extension === 'md'
+        ? new File([file], file.name, { type: contentType, lastModified: file.lastModified })
+        : file
       const path = `${input.userId}/${crypto.randomUUID()}.${extension}`
       const { error: uploadError } = await client.storage
         .from('chat-attachments')
-        .upload(path, file, {
+        .upload(path, uploadFile, {
           contentType,
           upsert: false,
         })
