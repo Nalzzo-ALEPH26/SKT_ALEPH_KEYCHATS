@@ -7,6 +7,7 @@ import {
   joinChannelByCode,
   leaveChannel,
   normalizeChannelName,
+  renameChannel,
   type ChannelActor,
   type ChannelRepository,
 } from '@/lib/channels/service'
@@ -44,6 +45,7 @@ function repository(): ChannelRepository {
     removeMember: vi.fn().mockResolvedValue(undefined),
     memberCount: vi.fn().mockResolvedValue(2),
     delete: vi.fn().mockResolvedValue(undefined),
+    rename: vi.fn().mockResolvedValue(undefined),
   }
 }
 
@@ -186,5 +188,69 @@ describe('deleteChannel', () => {
       deleteChannel(repo, admin, 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
     ).rejects.toThrow('DEFAULT_CHANNEL_UNDELETABLE')
     expect(repo.delete).not.toHaveBeenCalled()
+  })
+})
+
+describe('renameChannel', () => {
+  const channelId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+
+  it('allows the creator to rename a channel and trims the new name', async () => {
+    const repo = repository()
+    await expect(renameChannel(repo, creator, channelId, '  새 프로젝트  ')).resolves.toEqual({ name: '새 프로젝트' })
+    expect(repo.rename).toHaveBeenCalledWith(channelId, '새 프로젝트')
+  })
+
+  it('allows a content moderator to rename another creator channel', async () => {
+    const repo = repository()
+    await renameChannel(repo, admin, channelId, 'Operations')
+    expect(repo.rename).toHaveBeenCalledWith(channelId, 'Operations')
+  })
+
+  it('rejects members who are not the creator', async () => {
+    const repo = repository()
+    await expect(renameChannel(repo, { userId: memberId, isAdmin: false }, channelId, 'Changed')).rejects.toThrow('CHANNEL_MANAGE_FORBIDDEN')
+    expect(repo.rename).not.toHaveBeenCalled()
+  })
+
+  it('never renames the default general channel, even for admins', async () => {
+    const repo = repository()
+    vi.mocked(repo.getById).mockResolvedValue({
+      id: channelId, name: 'general', createdBy: creator.userId, isDefault: true, joinCode: '100000',
+    })
+    await expect(renameChannel(repo, admin, channelId, 'Renamed')).rejects.toThrow('DEFAULT_CHANNEL_RENAME_FORBIDDEN')
+    expect(repo.rename).not.toHaveBeenCalled()
+  })
+
+  it('rejects blank, reserved, and overlong names', async () => {
+    const repo = repository()
+    for (const name of ['', '   ', 'x'.repeat(81), ' GENERAL ']) {
+      await expect(renameChannel(repo, creator, channelId, name)).rejects.toThrow()
+    }
+    expect(repo.rename).not.toHaveBeenCalled()
+  })
+
+  it('rejects duplicate names ignoring case and surrounding whitespace', async () => {
+    const repo = repository()
+    vi.mocked(repo.findByNormalizedName).mockResolvedValue({
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      name: 'New Name', createdBy: memberId, isDefault: false, joinCode: '345678',
+    })
+    await expect(renameChannel(repo, creator, channelId, '  NEW NAME  ')).rejects.toThrow('CHANNEL_NAME_TAKEN')
+    expect(repo.rename).not.toHaveBeenCalled()
+  })
+
+  it('allows changing only letter case of the same channel name', async () => {
+    const repo = repository()
+    vi.mocked(repo.findByNormalizedName).mockResolvedValue({
+      id: channelId, name: 'design', createdBy: creator.userId, isDefault: false, joinCode: '234567',
+    })
+    await renameChannel(repo, creator, channelId, 'DESIGN')
+    expect(repo.rename).toHaveBeenCalledWith(channelId, 'DESIGN')
+  })
+
+  it('does not write when the new name is unchanged', async () => {
+    const repo = repository()
+    await expect(renameChannel(repo, creator, channelId, 'design')).resolves.toEqual({ name: 'design' })
+    expect(repo.rename).not.toHaveBeenCalled()
   })
 })

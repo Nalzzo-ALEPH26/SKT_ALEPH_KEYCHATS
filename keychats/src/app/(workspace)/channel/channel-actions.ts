@@ -13,6 +13,7 @@ import {
   joinChannelByCode,
   leaveChannel,
   removeChannelMember,
+  renameChannel,
   type ChannelActor,
 } from '@/lib/channels/service'
 import { createSupabaseChannelRepository } from '@/lib/channels/supabase'
@@ -52,6 +53,32 @@ export async function createChannelAction(formData: FormData) {
   const created = await createChannel(repository, actor, name, memberIds)
   revalidatePath('/')
   return { channelId: created.id }
+}
+
+export async function renameChannelAction(formData: FormData): Promise<{ ok: true; name: string } | { ok: false; error: string }> {
+  const channelId = requiredText(formData, 'channelId')
+  const name = String(formData.get('name') ?? '')
+  const { actor, repository } = await channelContext()
+
+  try {
+    const renamed = await renameChannel(repository, actor, channelId, name)
+    revalidatePath(`/channel/${channelId}`)
+    revalidatePath('/', 'layout')
+    return { ok: true, name: renamed.name }
+  } catch (error) {
+    const code = error instanceof Error ? error.message : ''
+    if ([
+      'CHANNEL_NAME_INVALID',
+      'CHANNEL_NAME_RESERVED',
+      'CHANNEL_NAME_TAKEN',
+      'CHANNEL_MANAGE_FORBIDDEN',
+      'DEFAULT_CHANNEL_RENAME_FORBIDDEN',
+      'CHANNEL_NOT_FOUND',
+    ].includes(code)) {
+      return { ok: false, error: code }
+    }
+    throw error
+  }
 }
 
 export async function joinChannelByCodeAction(formData: FormData) {

@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 
 import { ChannelDialog } from '@/components/channel-dialog'
 import { ChannelMessagePane } from '@/components/channel-message-pane'
+import { ChannelRenameControl } from '@/components/channel-rename-control'
 import { MemberDialog } from '@/components/member-dialog'
 import { requireActiveUser } from '@/lib/auth/guards'
 import { createAuthGuardAccess } from '@/lib/auth/server-access'
@@ -19,6 +20,7 @@ import {
   deleteChannelAction,
   leaveChannelAction,
   removeChannelMemberAction,
+  renameChannelAction,
 } from '../channel-actions'
 
 type PageProps = {
@@ -87,7 +89,12 @@ export default async function ChannelPage({ params }: PageProps) {
       <header className="shrink-0 flex flex-wrap items-start justify-between gap-4 border-b border-black/10 pb-4 dark:border-white/10">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">CHANNEL</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">#{channel.name}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h1 className="min-w-0 break-words text-2xl font-semibold tracking-tight">#{channel.name}</h1>
+            {canManage && !channel.is_default ? (
+              <ChannelRenameControl channelId={channel.id} channelName={channel.name} action={renameChannelAction} />
+            ) : null}
+          </div>
           <p className="mt-1 flex flex-wrap items-center gap-x-1 text-sm text-zinc-500">
             <span>멤버 {members.length}명</span>
             <span aria-hidden="true">·</span>

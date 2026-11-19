@@ -176,7 +176,7 @@ test('creates a member channel and covers attachment, reaction, pin, unread, the
     await login(firstPage, first.loginId)
     await firstPage.goto(`/chats/channel/${baseChannelId}`)
 
-    const newChannelName = `accept-${suffix}`.slice(0, 80)
+    let newChannelName = `accept-${suffix}`.slice(0, 80)
     const createDetails = firstPage.locator('details').filter({ hasText: '채널 만들기' }).first()
     await createDetails.locator('summary').click()
     await createDetails.getByLabel('채널 이름').fill(newChannelName)
@@ -209,6 +209,19 @@ test('creates a member channel and covers attachment, reaction, pin, unread, the
       'ready',
       { timeout: 12_000 },
     )
+
+    // Only the channel creator can rename this channel; the change updates
+    // both the conversation header and the sidebar for participants.
+    await expect(secondPage.getByRole('button', { name: '채널 이름 변경' })).toHaveCount(0)
+    await firstPage.getByRole('button', { name: '채널 이름 변경' }).click()
+    const renamedChannelName = `renamed-${suffix}`.slice(0, 80)
+    await firstPage.getByRole('textbox', { name: '새 채널 이름' }).fill(renamedChannelName)
+    await firstPage.getByRole('button', { name: '변경 저장' }).click()
+    newChannelName = renamedChannelName
+    await expect(firstPage.getByRole('heading', { name: `#${newChannelName}` })).toBeVisible({ timeout: 10_000 })
+    await expect(firstPage.locator('aside:visible a').filter({ hasText: `#${newChannelName}` }).first()).toBeVisible()
+    await secondPage.reload()
+    await expect(secondPage.getByRole('heading', { name: `#${newChannelName}` })).toBeVisible()
 
     const richMessage = `rich-${Date.now()}`
     await firstPage.locator('input[type="file"][multiple]').setInputFiles({

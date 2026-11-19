@@ -105,6 +105,18 @@ export function createSupabaseChannelRepository(admin: SupabaseClient): ChannelR
       return count ?? 0
     },
 
+    async rename(channelId, name) {
+      const { data, error } = await admin
+        .from('channels')
+        .update({ name, updated_at: new Date().toISOString() })
+        .eq('id', channelId)
+        .select('id')
+        .maybeSingle()
+      if (error?.code === '23505') throw new Error('CHANNEL_NAME_TAKEN', { cause: error })
+      assertNoError(error, 'CHANNEL_RENAME_FAILED')
+      if (!data) throw new Error('CHANNEL_NOT_FOUND')
+    },
+
     async delete(channelId) {
       const { error } = await admin.from('channels').delete().eq('id', channelId)
       assertNoError(error, 'CHANNEL_DELETE_FAILED')

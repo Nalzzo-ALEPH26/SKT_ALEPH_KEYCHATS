@@ -21,6 +21,7 @@ export type ChannelRepository = {
   removeMember: (channelId: string, userId: string) => Promise<void>
   memberCount: (channelId: string) => Promise<number>
   delete: (channelId: string) => Promise<void>
+  rename: (channelId: string, name: string) => Promise<void>
 }
 
 function canonicalChannelName(name: string) {
@@ -81,6 +82,28 @@ export async function createChannel(
     throw error
   }
   return created
+}
+
+export async function renameChannel(
+  repository: ChannelRepository,
+  actor: ChannelActor,
+  channelId: string,
+  rawName: string,
+) {
+  const channel = await requireChannel(repository, channelId)
+  assertCanManage(channel, actor)
+  if (channel.isDefault || canonicalChannelName(channel.name) === 'general') {
+    throw new Error('DEFAULT_CHANNEL_RENAME_FORBIDDEN')
+  }
+
+  const name = normalizeChannelName(rawName)
+  if (name === channel.name) return { name }
+
+  const duplicate = await repository.findByNormalizedName(canonicalChannelName(name))
+  if (duplicate && duplicate.id !== channelId) throw new Error('CHANNEL_NAME_TAKEN')
+
+  await repository.rename(channelId, name)
+  return { name }
 }
 
 export async function joinChannelByCode(
